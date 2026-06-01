@@ -1,0 +1,669 @@
+[
+  {
+    "code": "KITCOPA010",
+    "name": "Kit Arquibancada Básico",
+    "category": "Squeezes",
+    "src": "assets/elo-products/kitcopa010.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/kitcopa010/kit-arquibancada-b%C3%A1sico",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1779477020000.000000-10698_1_4_kit-copa-do-mundo-perrsonalizado-kit-meia-sacola-chaveiros-elo-brindes-05.jpg",
+    "color": "disponíveis: Branco, amarelo neon, azul royal, preto, mesclas e vermelho",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "38,5 x 33,0 cm (AxL)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "100 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 420,
+      "y": 220,
+      "width": 360,
+      "height": 300
+    }
+  },
+  {
+    "code": "KCH352",
+    "name": "Churrasqueira Portátil Personalizada Cilíndrica em Ferro com Dupla Face",
+    "category": "Outros",
+    "src": "assets/elo-products/kch352.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/kch352/churrasqueira-port%C3%A1til-personalizada-cil%C3%ADndrica-em-ferro-com-dupla-face",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1779305877000.000000-10686_1_4_churrasqueira-personalzada-em-formato-cilindrico-com-estrutura-em-ferro-kch352-elo-brindes-preto-01.jpg",
+    "color": "porativos premium",
+    "techniques": [
+      "serigrafia",
+      "transfer"
+    ],
+    "dimensions": "39,5 x 42,0 x 27,0 cm (AxLxP)",
+    "area": "10,0 x 30,0 cm",
+    "minimumQuantity": "10 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "KCH350",
+    "name": "Churrasqueira Portátil Personalizada em Ferro com Pés Retráteis",
+    "category": "Outros",
+    "src": "assets/elo-products/kch350.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/kch350/churrasqueira-port%C3%A1til-personalizada-em-ferro-com-p%C3%A9s-retr%C3%A1teis",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1779301921000.000000-10684_1_4_churrasqueira-personalizada-portatil-em-ferro-com-pes-retrateirs-em-metal-kch350-elo-brindes--preto-01.jpg",
+    "color": "A definir",
+    "techniques": [
+      "serigrafia",
+      "transfer"
+    ],
+    "dimensions": "13,0 x 31,0 x 31,0 cm (AxLxP)",
+    "area": "2,0 x 4,0 cm (alça de madeira)",
+    "minimumQuantity": "10 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BD206",
+    "name": "Pochete Esportiva Personalizada em Poliéster Resistente à Água",
+    "category": "Outros",
+    "src": "assets/elo-products/bd206.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/bd206/pochete-esportiva-personalizada-em-poli%C3%A9ster-resistente-%C3%A0-%C3%A1gua",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1779300321000.000000-10683_1_4_pochete-esportiva-personalizada-em-poliester-resistebte-a-agua-bd206-elo-brindes-laranja-07.jpg",
+    "color": "ridas, caminhadas, academia e uso diário",
+    "techniques": [
+      "serigrafia",
+      "transfer"
+    ],
+    "dimensions": "11,0 x 29,0 cm (AxL)",
+    "area": "6,0 x 17,0 cm",
+    "minimumQuantity": "10 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BD204",
+    "name": "Pochete Doleira Personalizada em Nylon com Design Antifurto",
+    "category": "Outros",
+    "src": "assets/elo-products/bd204.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/bd204/pochete-doleira-personalizada-em-nylon-com-design-antifurto",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1779135853000.000000-10679_1_4_pochete-doleira-em-nylon-personalizada-para-brindes-personalizados-bd204-azul-elo-brindes-01.jpg",
+    "color": "ridas e uso diário",
+    "techniques": [
+      "serigrafia",
+      "transfer"
+    ],
+    "dimensions": "13,0 x 25,0 cm (AxL)",
+    "area": "8,0 x 15,0 cm",
+    "minimumQuantity": "10 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BD203",
+    "name": "Pochete Esportiva Personalizada em Oxford Resistente à Água",
+    "category": "Outros",
+    "src": "assets/elo-products/bd203.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/bd203/pochete-esportiva-personalizada-em-oxford-resistente-%C3%A0-%C3%A1gua",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1779134879000.000000-10678_1_4_pochete-esportiva-personalizada-em-tecido-oxford-resistente-a-agua-bd203-elo-brindes-cinza-01.jpg",
+    "color": "ridas e uso diário",
+    "techniques": [
+      "serigrafia",
+      "transfer"
+    ],
+    "dimensions": "12,3 x 32,9 cm (AxL). Comprimento da alça: 59 cm",
+    "area": "6,5 x 20,0 cm",
+    "minimumQuantity": "10 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BL118",
+    "name": "Bolsa de Ombro em Nylon Personalizada",
+    "category": "Bolsas",
+    "src": "assets/elo-products/bl118.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/bl118/bolsa-de-ombro-em-nylon-personalizada",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1779128446000.000000-10674_1_4_bolsa-de-ombrom-em-nylon-personalizada-bl118-elo-brindes-roxo-01.jpg",
+    "color": "A definir",
+    "techniques": [
+      "serigrafia",
+      "transfer"
+    ],
+    "dimensions": "20,5 x 16,5 x 9,0 (AxLxP)",
+    "area": "9,0 x 10,0 cm",
+    "minimumQuantity": "10 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BL117",
+    "name": "Bolsa de Ombro Poliéster PVC Mescla Personalizada",
+    "category": "Bolsas",
+    "src": "assets/elo-products/bl117.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/bl117/bolsa-de-ombro-poli%C3%A9ster-pvc-mescla-personalizada",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1778702753000.000000-10654_1_4_bolsa-de-ombro-poliester-personalizado--bl117-preto-elo-brindes-01.jpg",
+    "color": "porativos, ações promocionais, eventos, feiras e kits personalizados",
+    "techniques": [
+      "serigrafia",
+      "transfer"
+    ],
+    "dimensions": "19,0 x 13,0 x 5,5 cm (AxLxP)",
+    "area": "Aproximadamente 12,0 x 10,0 cm",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BL116",
+    "name": "Bolsa de Ombro Couro Sintético Personalizada",
+    "category": "Bolsas",
+    "src": "assets/elo-products/bl116.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/bl116/bolsa-de-ombro-couro-sint%C3%A9tico-personalizada",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1778702007000.000000-10653_1_4_bolsa-de-ombro-couro-simtetico-personalizado-elo-brindes-blz116-cores-01.jpg",
+    "color": "porativos, ações promocionais, eventos e campanhas de endomarketing",
+    "techniques": [
+      "serigrafia"
+    ],
+    "dimensions": "20,0 x 13,0 x 6,0 cm (AxLxP)",
+    "area": "Aproximadamente 12,0 x 10,0 cm",
+    "minimumQuantity": "10 peças",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "C212B",
+    "name": "Copo Térmico Inox 380ml Multiuso Personalizado",
+    "category": "Squeezes",
+    "src": "assets/elo-products/c212b.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/c212b/copo-t%C3%A9rmico-inox-380ml-multiuso-personalizado",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1778166634000.000000-10638_1_4_copo-termico-inox-personalizado-c212B-elo-brindes-dia-dos-pais-elobrindes--laranja-02.jpg",
+    "color": "A definir",
+    "techniques": [
+      "laser"
+    ],
+    "dimensions": "15,2 cm (altura) x 7,5 cm (largura) x 25,7 cm (circunferência)",
+    "area": "aproximada de 10,5 cm x 8 cm. Peso aproximado de 241g",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 420,
+      "y": 220,
+      "width": 360,
+      "height": 300
+    }
+  },
+  {
+    "code": "NE149",
+    "name": "Nécessaire Aveludada Personalizada",
+    "category": "Necessaires",
+    "src": "assets/elo-products/ne149.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/ne149/n%C3%A9cessaire-aveludada-personalizada",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1778164733000.000000-10637_1_4_necessaries-personalizada-poliester-texturizada-aveludada-NE149-elo-brindes--rose-01.jpg",
+    "color": "Creme, preto, rosé e verde",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "13 cm de altura x 20,5 cm de largura x 7,5 cm de profundidade",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BTR110",
+    "name": "Bolsa térmica personalizada 7 litros",
+    "category": "Bolsas",
+    "src": "assets/elo-products/btr110.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/btr110/bolsa-t%C3%A9rmica-personalizada-7-litros",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1776690278000.000000-10621_1_4_bolsa-termica-com-alca-transversal-com-regulagem-de-tamanho-azul-lado.jpg",
+    "color": "Azul",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "13 x 23 cm (AxL)",
+    "area": "7 x 15 cm",
+    "minimumQuantity": "10",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BTR109",
+    "name": "Bolsa térmica personalizada em poliester",
+    "category": "Bolsas",
+    "src": "assets/elo-products/btr109.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/btr109/bolsa-t%C3%A9rmica-personalizada-em-poliester",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1776689176000.000000-10620_1_4_bolsa-termica-com-bolso-frontal-aberta.jpg",
+    "color": "Preto, azul, branco, verde escuro",
+    "techniques": [
+      "transfer"
+    ],
+    "dimensions": "24 x 16,5 cm (AxL)",
+    "area": "90 x 60 mm (transfer)",
+    "minimumQuantity": "10",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "MC396",
+    "name": "Mochila personalizada com expansor",
+    "category": "Mochilas",
+    "src": "assets/elo-products/mc396.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/mc396/mochila-personalizada-com-expansor",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1776688038000.000000-10619_1_4_mochila-com-al%C3%A7as-de-ombro-acolchoadas-preto.jpg",
+    "color": "Preto",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "44 x 31 cm (AxL)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "5",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 380,
+      "y": 190,
+      "width": 440,
+      "height": 330
+    }
+  },
+  {
+    "code": "MC395",
+    "name": "Mochila personalizada compartimento a vácuo",
+    "category": "Mochilas",
+    "src": "assets/elo-products/mc395.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/mc395/mochila-personalizada-compartimento-a-v%C3%A1cuo",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1776687615000.000000-10618_1_4_mochila-com-bolso-lateral-com-usb-preto.jpg",
+    "color": "Preto",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "49 x 35,5 cm (AxL)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "5",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 380,
+      "y": 190,
+      "width": 440,
+      "height": 330
+    }
+  },
+  {
+    "code": "CD221",
+    "name": "Caneta Marcadora personalizada",
+    "category": "Canetas",
+    "src": "assets/elo-products/cd221.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/cd221/caneta-marcadora-personalizada",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1776261477000.000000-10601_1_4_caneta-com-tampa-ponta-redonda-vermelha.jpg",
+    "color": "Azul, preto, verde, vermelho",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "14,4 x 2 cm (AxL)",
+    "area": "1 x 9 cm",
+    "minimumQuantity": "10",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 350,
+      "y": 320,
+      "width": 500,
+      "height": 92
+    }
+  },
+  {
+    "code": "CM564",
+    "name": "Caneta personalizada Metal brilhante",
+    "category": "Canetas",
+    "src": "assets/elo-products/cm564.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/cm564/caneta-personalizada-metal-brilhante",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1776260843000.000000-10600_1_4_caneta-tinta-azul-esferiografica-metal-dourada.jpg",
+    "color": "Azul, chumbo, cobre, dourado, prata, preto, verde, vermelho",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "13,7 x 1,3 cm (AxL)",
+    "area": "0,8 x 9 cm",
+    "minimumQuantity": "10",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 350,
+      "y": 320,
+      "width": 500,
+      "height": 92
+    }
+  },
+  {
+    "code": "S237",
+    "name": "Squeeze personalizado dobrável TPU 500ml",
+    "category": "Squeezes",
+    "src": "assets/elo-products/s237.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/s237/squeeze-personalizado-dobr%C3%A1vel-tpu-500ml",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775158317000.000000-10578_1_4_squeeze-personalizado-dobravel-tpu-500ml-elo-brindes-07.jpg",
+    "color": "Azul, azul claro, branco, cinza, laranja, laranja fluorescente, preto e verde",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "26 x 8,5 x 3,2 cm (AxLxP)",
+    "area": "18 x 6 cm (CxL)",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 420,
+      "y": 220,
+      "width": 360,
+      "height": 300
+    }
+  },
+  {
+    "code": "SC172",
+    "name": "Bolsa ecológica personalizada em EVA",
+    "category": "Sacolas",
+    "src": "assets/elo-products/sc172.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/sc172/bolsa-ecol%C3%B3gica-personalizada-em-eva",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775157465000.000000-10577_1_4_bolsa-personalizada-em-eva-ecologico-elo-brindes-06.jpg",
+    "color": "Azul escuro, bege, branco, cinza e preto",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "29 x 33 x 12 cm (AxLxP)",
+    "area": "4 x 28 cm (parte inferior) | 1,5 x 1,5 cm (botões)",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 190,
+      "width": 480,
+      "height": 340
+    }
+  },
+  {
+    "code": "S234",
+    "name": "Squeeze personalizada térmica 750ml em inox",
+    "category": "Squeezes",
+    "src": "assets/elo-products/s234.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/s234/squeeze-personalizada-t%C3%A9rmica-750ml-em-inox",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775154988000.000000-10575_1_4_squeeze-personalizada-termica-750ml-em-inox-elo-brindes-04.jpg",
+    "color": "Azul, cinza, preto e verde",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "28 x ø8 cm (AxØ)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 420,
+      "y": 220,
+      "width": 360,
+      "height": 300
+    }
+  },
+  {
+    "code": "S233",
+    "name": "Squeeze personalizada térmica 550ml parede dupla inox reciclado",
+    "category": "Squeezes",
+    "src": "assets/elo-products/s233.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/s233/squeeze-personalizada-t%C3%A9rmica-550ml-parede-dupla-inox-reciclado",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775149070000.000000-10574_1_4_squeeze-personalizada-termica-550ml-parede-dupla-inox-reciclado-06.jpg",
+    "color": "Azul claro, azul, branco e preto",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "25 x ø6,5 cm (AxØ)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 420,
+      "y": 220,
+      "width": 360,
+      "height": 300
+    }
+  },
+  {
+    "code": "S232",
+    "name": "Squeeze personalizada em alumínio reciclado 550ml",
+    "category": "Squeezes",
+    "src": "assets/elo-products/s232.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/s232/squeeze-personalizada-em-alum%C3%ADnio-reciclado-550ml",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775148191000.000000-10573_1_4_squeeze-personalizada-em-aluminio-reciclado-550ml-elo-brindes-08.jpg",
+    "color": "Azul, branco, laranja, prata, preto, verde e vermelho",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "18 x ø7 cm (AxØ)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 420,
+      "y": 220,
+      "width": 360,
+      "height": 300
+    }
+  },
+  {
+    "code": "BTR104",
+    "name": "Bolsa personalizada térmica em poliéster 5l modelo sem solda",
+    "category": "Bolsas",
+    "src": "assets/elo-products/btr104.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/btr104/bolsa-personalizada-t%C3%A9rmica-em-poli%C3%A9ster-5l-modelo-sem-solda",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775146055000.000000-10572_1_4_bolsa-personalizada-termica-em-poliester-5l-modelo-sem-solda-elo-brindes-03.jpg",
+    "color": "Cinza",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "20 x 24 x 11 cm (AxLxP)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BTR103",
+    "name": "Bolsa personalizada térmica em poliéster 7l",
+    "category": "Bolsas",
+    "src": "assets/elo-products/btr103.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/btr103/bolsa-personalizada-t%C3%A9rmica-em-poli%C3%A9ster-7l",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775145775000.000000-10571_1_4_bolsa-personalizada-termica-em-poliester-7l-elo-brindes-04.jpg",
+    "color": "Cinza",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "18 x 28 x 14 cm (AxLxP)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BTR102",
+    "name": "Bolsa personalizada térmica em poliéster 5,6l",
+    "category": "Bolsas",
+    "src": "assets/elo-products/btr102.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/btr102/bolsa-personalizada-t%C3%A9rmica-em-poli%C3%A9ster-5%2C6l",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775145488000.000000-10570_1_4_bolsa-personalizada-termica-em-poliester-5-6l-elo-brindes-02.jpg",
+    "color": "Cinza",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "18 x 22,5 x 14 cm (AxLxP)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "MC388",
+    "name": "Mochila personalizada para notebook 100% em PU",
+    "category": "Mochilas",
+    "src": "assets/elo-products/mc388.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/mc388/mochila-personalizada-para-notebook-100%25-em-pu",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775143301000.000000-10569_1_4_mochila-personalizada-para-notebook-100-em-pu-elo-brindes-03.jpg",
+    "color": "Preto",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "46 x 30 x 12 cm (AxLxP)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 380,
+      "y": 190,
+      "width": 440,
+      "height": 330
+    }
+  },
+  {
+    "code": "MC387",
+    "name": "Mochila personalizada para notebook 13l",
+    "category": "Mochilas",
+    "src": "assets/elo-products/mc387.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/mc387/mochila-personalizada-para-notebook-13l",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775143017000.000000-10568_1_4_mochila-personalizada-para-notebook-13l-elo-brindes-05.jpg",
+    "color": "Preto",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "43 x 31 x 10 cm (AxLxP)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 380,
+      "y": 190,
+      "width": 440,
+      "height": 330
+    }
+  },
+  {
+    "code": "MC386",
+    "name": "Mochila personalizada para notebook em poliéster 300D e 190D",
+    "category": "Mochilas",
+    "src": "assets/elo-products/mc386.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/mc386/mochila-personalizada-para-notebook-em-poli%C3%A9ster-300d-e-190d",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775142638000.000000-10567_1_4_mochila-personalizada-para-notebook-em-poliester-300d-elo-brindes-04.jpg",
+    "color": "Azul, cinza e preto",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "42 x 32 x 12 cm (AxLxP)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 380,
+      "y": 190,
+      "width": 440,
+      "height": 330
+    }
+  },
+  {
+    "code": "NE148",
+    "name": "Necessaire personalizada em poliéster 300D 1,7l",
+    "category": "Necessaires",
+    "src": "assets/elo-products/ne148.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/ne148/necessaire-personalizada-em-poli%C3%A9ster-300d-1%2C7l",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775140404000.000000-10566_1_4_necessaire-personalizada-em-poliester-300d-1-7l-elo-brindes-02.jpg",
+    "color": "Cinza",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "18 x 16 x 6 cm (AxLxP)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  },
+  {
+    "code": "BTR108",
+    "name": "Bolsa personalizada térmica em algodão e cortiça 4,8l",
+    "category": "Bolsas",
+    "src": "assets/elo-products/btr108.jpg",
+    "sourceUrl": "https://www.elobrindes.com.br/produtos/btr108/bolsa-personalizada-t%C3%A9rmica-em-algod%C3%A3o-e-corti%C3%A7a-4%2C8l",
+    "sourceImage": "https://www.elobrindes.com.br/imagens/produtos_imagens/1775140036000.000000-10565_1_4_bolsa-personalizada-termica-em-algodao-e-corti%C3%A7a-4-8l-elo-brindes-05.jpg",
+    "color": "tiça / Revestimento em alumínio",
+    "techniques": [
+      "A definir"
+    ],
+    "dimensions": "22 cm (altura) x 18 cm (diâmetro)",
+    "area": "Área sugerida no produto",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 210,
+      "width": 480,
+      "height": 300
+    }
+  }
+]

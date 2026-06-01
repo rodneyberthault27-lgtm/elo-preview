@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elo Preview</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="Editor Elo Preview">
+        <header class="topbar">
+          <div class="brand-lockup">
+            <div class="brand-mark" aria-hidden="true">E</div>
+            <div>
+              <p class="eyebrow">Elo Preview</p>
+              <h1>Simule sua marca no brinde antes da produção</h1>
+            </div>
+          </div>
+          <div class="top-actions">
+            <button id="approvalBtn" class="ghost-button" type="button">Ficha</button>
+            <button id="downloadBtn" class="primary-button" type="button">Exportar PNG</button>
+          </div>
+        </header>
+
+        <nav class="flow-steps" aria-label="Fluxo principal">
+          <span class="is-active">Produto</span>
+          <span>Logo</span>
+          <span>Mockup</span>
+          <span>Ficha</span>
+        </nav>
+
+        <div class="stage-wrap">
+          <canvas id="mockupCanvas" width="1200" height="760" aria-label="Prévia do mockup"></canvas>
+          <div id="emptyState" class="empty-state">
+            <strong>Envie o logo do cliente</strong>
+            <span>Depois arraste sobre o produto para ajustar posição, tamanho e giro.</span>
+          </div>
+        </div>
+
+        <p class="legal-note">
+          Simulação visual. Produção sujeita à análise técnica, área real de gravação e viabilidade do produto.
+        </p>
+      </section>
+
+      <aside class="panel" aria-label="Controles do Elo Preview">
+        <section class="control-group">
+          <div class="section-title">
+            <h2>Produto</h2>
+            <span id="productCount">Carregando</span>
+          </div>
+          <input id="productSearch" type="search" placeholder="Buscar código, nome ou categoria" aria-label="Buscar produto" />
+          <div class="quick-cats" aria-label="Categorias rápidas">
+            <button class="is-active" type="button" data-category="all">Todos</button>
+          </div>
+          <div class="product-grid" id="productGrid" aria-live="polite"></div>
+          <label class="file-drop">
+            <span>Usar imagem própria</span>
+            <input id="productUpload" type="file" accept="image/*" />
+          </label>
+          <div class="tool-buttons">
+            <button id="hidePhotoLogoBtn" class="tool-button" type="button">Ocultar logo da foto</button>
+            <button id="autoHidePhotoLogoBtn" class="tool-button" type="button">Detectar logo</button>
+            <button id="clearPhotoLogoBtn" class="tool-button" type="button">Limpar ocultações</button>
+          </div>
+          <p id="cleanupHint" class="hint">Ative e arraste sobre o logo antigo do produto.</p>
+        </section>
+
+        <section class="control-group">
+          <h2>Logo do cliente</h2>
+          <label class="file-drop accent">
+            <span>Enviar PNG, JPG ou SVG</span>
+            <input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+          </label>
+          <label class="check-row">
+            <input id="removeBgToggle" type="checkbox" checked />
+            <span>Remover fundo branco automaticamente</span>
+          </label>
+          <p id="qualityHint" class="hint">PNG transparente ou vetor trazem a melhor prévia.</p>
+        </section>
+
+        <section class="control-group">
+          <h2>Ajustes do mockup</h2>
+          <label class="range-row">
+            <span>Horizontal</span>
+            <input id="xControl" type="range" min="0" max="1200" value="600" />
+          </label>
+          <label class="range-row">
+            <span>Vertical</span>
+            <input id="yControl" type="range" min="0" max="760" value="395" />
+          </label>
+          <label class="range-row">
+            <span>Tamanho</span>
+            <input id="scaleControl" type="range" min="1" max="90" value="28" />
+          </label>
+          <label class="range-row">
+            <span>Giro</span>
+            <input id="rotationControl" type="range" min="-180" max="180" value="-8" />
+          </label>
+          <label class="range-row">
+            <span>Opacidade</span>
+            <input id="opacityControl" type="range" min="25" max="100" value="92" />
+          </label>
+          <label class="range-row">
+            <span>Curvatura</span>
+            <input id="bendControl" type="range" min="0" max="70" value="28" />
+          </label>
+        </section>
+
+        <section class="control-group">
+          <h2>Cor e técnica</h2>
+          <label class="range-row">
+            <span>Cor logo</span>
+            <select id="logoColorMode">
+              <option value="original">Original</option>
+              <option value="#111111">Preto</option>
+              <option value="#ffffff">Branco</option>
+              <option value="#c9a227">Dourado</option>
+              <option value="#a8b0b8">Prata</option>
+              <option value="custom">Personalizada</option>
+            </select>
+          </label>
+          <label class="range-row color-row">
+            <span>Hex</span>
+            <input id="logoColorInput" type="color" value="#0f7a6c" />
+          </label>
+          <label class="range-row">
+            <span>Técnica</span>
+            <select id="techniqueControl">
+              <option value="laser">Laser</option>
+              <option value="silk">Serigrafia</option>
+              <option value="uv">UV digital</option>
+              <option value="tampo">Tampografia</option>
+              <option value="bordado">Bordado</option>
+              <option value="baixo-relevo">Baixo-relevo</option>
+            </select>
+          </label>
+          <div id="contrastAlert" class="contrast-alert" role="status"></div>
+        </section>
+
+        <section class="control-group approval-panel">
+          <h2>Ficha de aprovação</h2>
+          <label>Cliente<input id="clientName" type="text" placeholder="Nome do cliente" /></label>
+          <label>Empresa<input id="companyName" type="text" placeholder="Empresa" /></label>
+          <label>Quantidade<input id="quantity" type="number" min="1" value="500" /></label>
+          <label>Consultora<input id="consultant" type="text" placeholder="Responsável Elo" /></label>
+          <label>Observações<textarea id="notes" rows="3">Logo aplicado em simulação comercial. Verificar arquivo vetorial antes da produção.</textarea></label>
+          <button id="printSheetBtn" class="secondary-button" type="button">Gerar ficha imprimível</button>
+        </section>
+      </aside>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
