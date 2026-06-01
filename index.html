@@ -120,10 +120,26 @@
               <option value="custom">Personalizada</option>
             </select>
           </label>
-          <label class="range-row color-row">
-            <span>Hex</span>
-            <input id="logoColorInput" type="color" value="#0f7a6c" />
-          </label>
+          <div class="color-panel">
+            <label class="range-row color-row">
+              <span>Escolher cor</span>
+              <input id="logoColorInput" type="color" value="#0f7a6c" />
+            </label>
+            <label class="range-row">
+              <span>Hex</span>
+              <input id="logoHexInput" type="text" value="#0f7a6c" maxlength="7" placeholder="#0f7a6c" />
+            </label>
+            <div class="color-swatches" aria-label="Cores rápidas">
+              <button type="button" data-color="#111111" style="--swatch:#111111" title="Preto"></button>
+              <button type="button" data-color="#ffffff" style="--swatch:#ffffff" title="Branco"></button>
+              <button type="button" data-color="#c9a227" style="--swatch:#c9a227" title="Dourado"></button>
+              <button type="button" data-color="#a8b0b8" style="--swatch:#a8b0b8" title="Prata"></button>
+              <button type="button" data-color="#0d7a63" style="--swatch:#0d7a63" title="Verde Elo"></button>
+              <button type="button" data-color="#e85d1f" style="--swatch:#e85d1f" title="Laranja"></button>
+              <button type="button" data-color="#1677c8" style="--swatch:#1677c8" title="Azul"></button>
+              <button type="button" data-color="#8b1a1a" style="--swatch:#8b1a1a" title="Vermelho"></button>
+            </div>
+          </div>
           <label class="range-row">
             <span>Técnica</span>
             <select id="techniqueControl">
@@ -150,6 +166,6 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=20260601-cleanup-soft"></script>
+    <script src="./app.js?v=20260601-color-panel"></script>
   </body>
 </html>

@@ -285,6 +285,16 @@ input[type="color"] {
   padding: 4px;
 }
 
+.color-panel {
+  display: grid;
+  gap: 9px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8fbf9;
+}
+
 .quick-cats {
   display: flex;
   flex-wrap: wrap;
@@ -451,11 +461,35 @@ input[type="range"] {
 }
 
 .color-row {
-  display: none;
+  display: grid;
 }
 
-.color-row.is-visible {
+.color-swatches {
   display: grid;
+  grid-template-columns: repeat(8, 38px);
+  gap: 7px;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.color-swatches button {
+  aspect-ratio: 1;
+  width: 38px;
+  min-height: 38px;
+  border: 1px solid rgba(22, 31, 27, 0.16);
+  border-radius: 999px;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.color-swatches button[data-color="#ffffff"] {
+  box-shadow: inset 0 0 0 2px rgba(22, 31, 27, 0.08);
+}
+
+.color-swatches button.is-active {
+  outline: 3px solid rgba(13, 122, 99, 0.25);
+  outline-offset: 2px;
 }
 
 .contrast-alert {

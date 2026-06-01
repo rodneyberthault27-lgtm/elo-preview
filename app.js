@@ -19,7 +19,8 @@ const opacityControl = document.querySelector("#opacityControl");
 const bendControl = document.querySelector("#bendControl");
 const logoColorMode = document.querySelector("#logoColorMode");
 const logoColorInput = document.querySelector("#logoColorInput");
-const logoColorRow = document.querySelector(".color-row");
+const logoHexInput = document.querySelector("#logoHexInput");
+const colorSwatches = document.querySelector(".color-swatches");
 const techniqueControl = document.querySelector("#techniqueControl");
 const productGrid = document.querySelector("#productGrid");
 const productSearch = document.querySelector("#productSearch");
@@ -220,6 +221,17 @@ function getRotateHandlePoint(quad = state.logoQuad) {
   };
 }
 
+function getResizeHandlePoint(quad = state.logoQuad) {
+  const center = getQuadCenter(quad);
+  const corner = quad.br;
+  const vector = { x: corner.x - center.x, y: corner.y - center.y };
+  const length = Math.max(Math.hypot(vector.x, vector.y), 1);
+  return {
+    x: corner.x + (vector.x / length) * 36,
+    y: corner.y + (vector.y / length) * 36,
+  };
+}
+
 function cloneQuad(quad = state.logoQuad) {
   if (!quad) return null;
   return Object.fromEntries(Object.entries(quad).map(([key, point]) => [key, { ...point }]));
@@ -356,9 +368,10 @@ function restoreUndoSnapshot(snapshot) {
   bendControl.value = Math.round(state.bend * 100);
   logoColorMode.value = state.logoColorMode;
   logoColorInput.value = state.logoColor;
+  logoHexInput.value = state.logoColor;
   techniqueControl.value = state.technique;
   removeBgToggle.checked = state.removeBackground;
-  logoColorRow.classList.toggle("is-visible", state.logoColorMode === "custom");
+  syncColorSwatches();
   if (state.logoOriginal) state.logo = processLogoImage(state.logoOriginal);
   updateContrastAlert();
 }
@@ -1031,7 +1044,7 @@ function drawWarpHandles(targetCtx) {
 
   const center = getQuadCenter(quad);
   const rotatePoint = getRotateHandlePoint(quad);
-  const resizePoint = quad.br;
+  const resizePoint = getResizeHandlePoint(quad);
 
   targetCtx.setLineDash([]);
   targetCtx.strokeStyle = "#1677c8";
@@ -1052,7 +1065,13 @@ function drawWarpHandles(targetCtx) {
   targetCtx.strokeStyle = "#0d7a63";
   targetCtx.lineWidth = 3;
   targetCtx.beginPath();
-  targetCtx.rect(resizePoint.x - 8, resizePoint.y - 8, 16, 16);
+  targetCtx.moveTo(quad.br.x, quad.br.y);
+  targetCtx.lineTo(resizePoint.x, resizePoint.y);
+  targetCtx.stroke();
+
+  targetCtx.fillStyle = "#ffffff";
+  targetCtx.beginPath();
+  targetCtx.rect(resizePoint.x - 9, resizePoint.y - 9, 18, 18);
   targetCtx.fill();
   targetCtx.stroke();
   targetCtx.restore();
@@ -1242,6 +1261,32 @@ function colorLabel() {
   return labels[state.logoColorMode] || state.logoColorMode;
 }
 
+function setCustomLogoColor(color, shouldPushUndo = true) {
+  const normalized = normalizeHexColor(color);
+  if (!normalized) return;
+  if (shouldPushUndo) pushControlUndo("logo-color");
+  state.logoColor = normalized;
+  state.logoColorMode = "custom";
+  logoColorMode.value = "custom";
+  logoColorInput.value = normalized;
+  logoHexInput.value = normalized;
+  syncColorSwatches();
+  updateContrastAlert();
+  draw();
+}
+
+function normalizeHexColor(value) {
+  const text = String(value || "").trim();
+  const expanded = text.replace(/^#([0-9a-f]{3})$/i, (_, hex) => `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`);
+  return /^#[0-9a-f]{6}$/i.test(expanded) ? expanded.toLowerCase() : null;
+}
+
+function syncColorSwatches() {
+  colorSwatches?.querySelectorAll("[data-color]").forEach((button) => {
+    button.classList.toggle("is-active", normalizeHexColor(button.dataset.color) === normalizeHexColor(state.logoColor));
+  });
+}
+
 function techniqueLabel(value) {
   const labels = {
     laser: "Laser",
@@ -1405,8 +1450,9 @@ function syncPositionControls() {
 function getHandleAtPoint(point) {
   if (!state.logoQuad) return null;
   const rotatePoint = getRotateHandlePoint();
+  const resizePoint = getResizeHandlePoint();
   if (distance(point, rotatePoint) <= 18) return { type: "rotate" };
-  if (distance(point, state.logoQuad.br) <= 18) return { type: "resize" };
+  if (distance(point, resizePoint) <= 20) return { type: "resize" };
   const corner = Object.entries(state.logoQuad).find(([, handlePoint]) => distance(point, handlePoint) <= 18)?.[0];
   return corner ? { type: "corner", key: corner } : null;
 }
@@ -1544,17 +1590,30 @@ bendControl.addEventListener("input", () => {
 logoColorMode.addEventListener("change", () => {
   beginUndo("logo-color-mode");
   state.logoColorMode = logoColorMode.value;
-  logoColorRow.classList.toggle("is-visible", state.logoColorMode === "custom");
+  if (state.logoColorMode !== "original" && state.logoColorMode !== "custom") {
+    state.logoColor = state.logoColorMode;
+    logoColorInput.value = state.logoColor;
+    logoHexInput.value = state.logoColor;
+  }
+  syncColorSwatches();
   updateContrastAlert();
   commitUndo("logo-color-mode");
   draw();
 });
 
 logoColorInput.addEventListener("input", () => {
-  pushControlUndo("logo-color");
-  state.logoColor = logoColorInput.value;
-  updateContrastAlert();
-  draw();
+  setCustomLogoColor(logoColorInput.value);
+});
+
+logoHexInput.addEventListener("input", () => {
+  const color = normalizeHexColor(logoHexInput.value);
+  if (color) setCustomLogoColor(color);
+});
+
+colorSwatches.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-color]");
+  if (!button) return;
+  setCustomLogoColor(button.dataset.color);
 });
 
 techniqueControl.addEventListener("change", () => {
@@ -1565,7 +1624,7 @@ techniqueControl.addEventListener("change", () => {
   draw();
 });
 
-[xControl, yControl, scaleControl, rotationControl, opacityControl, bendControl, logoColorInput].forEach((control) => {
+[xControl, yControl, scaleControl, rotationControl, opacityControl, bendControl, logoColorInput, logoHexInput].forEach((control) => {
   control.addEventListener("change", () => endControlUndo());
   control.addEventListener("blur", () => endControlUndo());
 });
