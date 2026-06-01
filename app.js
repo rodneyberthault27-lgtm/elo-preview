@@ -56,6 +56,9 @@ const state = {
   isDragging: false,
   dragOffsetX: 0,
   dragOffsetY: 0,
+  undoStack: [],
+  pendingHistory: null,
+  controlHistoryKey: null,
 };
 
 state.product.crossOrigin = "anonymous";
@@ -121,6 +124,9 @@ function renderProducts() {
 }
 
 function selectProduct(product) {
+  state.undoStack = [];
+  state.pendingHistory = null;
+  state.controlHistoryKey = null;
   state.selectedProduct = product;
   state.productCleanups = [];
   state.cleanupDraft = null;
@@ -215,6 +221,7 @@ function getRotateHandlePoint(quad = state.logoQuad) {
 }
 
 function cloneQuad(quad = state.logoQuad) {
+  if (!quad) return null;
   return Object.fromEntries(Object.entries(quad).map(([key, point]) => [key, { ...point }]));
 }
 
@@ -257,6 +264,103 @@ function normalizeRect(rect) {
     width: Math.abs(rect.width),
     height: Math.abs(rect.height),
   };
+}
+
+function createUndoSnapshot() {
+  return {
+    logoX: state.logoX,
+    logoY: state.logoY,
+    scale: state.scale,
+    rotation: state.rotation,
+    opacity: state.opacity,
+    bend: state.bend,
+    logoColorMode: state.logoColorMode,
+    logoColor: state.logoColor,
+    technique: state.technique,
+    removeBackground: state.removeBackground,
+    productCleanups: state.productCleanups.map((rect) => ({ ...rect })),
+    logoQuad: cloneQuad(),
+  };
+}
+
+function pushUndoSnapshot(snapshot = createUndoSnapshot(), compareWithCurrent = true) {
+  if (!snapshot) return;
+  if (compareWithCurrent) {
+    const current = createUndoSnapshot();
+    if (JSON.stringify(snapshot) === JSON.stringify(current)) return;
+  }
+  state.undoStack.push(snapshot);
+  if (state.undoStack.length > 40) state.undoStack.shift();
+}
+
+function beginUndo(label) {
+  if (state.pendingHistory?.label === label) return;
+  state.pendingHistory = { label, snapshot: createUndoSnapshot() };
+}
+
+function commitUndo(label) {
+  if (!state.pendingHistory || (label && state.pendingHistory.label !== label)) return;
+  pushUndoSnapshot(state.pendingHistory.snapshot);
+  state.pendingHistory = null;
+}
+
+function cancelUndo(label) {
+  if (!state.pendingHistory || (label && state.pendingHistory.label !== label)) return;
+  state.pendingHistory = null;
+}
+
+function pushControlUndo(key) {
+  if (state.controlHistoryKey === key) return;
+  state.controlHistoryKey = key;
+  pushUndoSnapshot(createUndoSnapshot(), false);
+}
+
+function endControlUndo(key) {
+  if (!key || state.controlHistoryKey === key) state.controlHistoryKey = null;
+}
+
+function undoLastChange() {
+  const snapshot = state.undoStack.pop();
+  if (!snapshot) return false;
+  state.pendingHistory = null;
+  state.controlHistoryKey = null;
+  restoreUndoSnapshot(snapshot);
+  draw();
+  return true;
+}
+
+function restoreUndoSnapshot(snapshot) {
+  state.logoX = snapshot.logoX;
+  state.logoY = snapshot.logoY;
+  state.scale = snapshot.scale;
+  state.rotation = snapshot.rotation;
+  state.opacity = snapshot.opacity;
+  state.bend = snapshot.bend;
+  state.logoColorMode = snapshot.logoColorMode;
+  state.logoColor = snapshot.logoColor;
+  state.technique = snapshot.technique;
+  state.removeBackground = snapshot.removeBackground;
+  state.productCleanups = snapshot.productCleanups.map((rect) => ({ ...rect }));
+  state.cleanupDraft = null;
+  state.cleanupStart = null;
+  state.logoQuad = snapshot.logoQuad ? cloneQuad(snapshot.logoQuad) : null;
+  state.activeHandle = null;
+  state.handleStart = null;
+  state.isDragging = false;
+
+  xControl.value = Math.round(state.logoX);
+  yControl.value = Math.round(state.logoY);
+  scaleControl.value = Math.round(state.scale * 100);
+  rotationControl.value = Math.round(state.rotation);
+  opacityControl.value = Math.round(state.opacity * 100);
+  bendControl.value = Math.round(state.bend * 100);
+  logoColorMode.value = state.logoColorMode;
+  logoColorInput.value = state.logoColor;
+  techniqueControl.value = state.technique;
+  removeBgToggle.checked = state.removeBackground;
+  logoColorRow.classList.toggle("is-visible", state.logoColorMode === "custom");
+  if (state.logoOriginal) state.logo = processLogoImage(state.logoOriginal);
+  updateContrastAlert();
 }
 
 function loadLogo(src, file) {
@@ -1229,6 +1333,7 @@ function canvasPoint(event) {
 function handlePointerDown(event) {
   const point = canvasPoint(event);
   if (state.cleanupMode) {
+    beginUndo("cleanup");
     state.cleanupStart = point;
     state.cleanupDraft = { x: point.x, y: point.y, width: 0, height: 0 };
     canvas.setPointerCapture(event.pointerId);
@@ -1238,6 +1343,7 @@ function handlePointerDown(event) {
   if (!state.logo) return;
   const handle = getHandleAtPoint(point);
   if (handle) {
+    beginUndo("logo-transform");
     state.activeHandle = handle;
     const center = getQuadCenter();
     state.handleStart = {
@@ -1252,6 +1358,7 @@ function handlePointerDown(event) {
     canvas.setPointerCapture(event.pointerId);
     return;
   }
+  beginUndo("logo-transform");
   state.isDragging = true;
   state.dragOffsetX = point.x - state.logoX;
   state.dragOffsetY = point.y - state.logoY;
@@ -1308,11 +1415,17 @@ function handlePointerMove(event) {
 function handlePointerUp(event) {
   if (state.cleanupMode && state.cleanupDraft) {
     const rect = normalizeRect(state.cleanupDraft);
-    if (rect.width > 12 && rect.height > 12) state.productCleanups.push(rect);
+    if (rect.width > 12 && rect.height > 12) {
+      state.productCleanups.push(rect);
+      commitUndo("cleanup");
+    } else {
+      cancelUndo("cleanup");
+    }
     state.cleanupDraft = null;
     state.cleanupStart = null;
     draw();
   }
+  if (state.activeHandle || state.isDragging) commitUndo("logo-transform");
   state.isDragging = false;
   state.activeHandle = null;
   state.handleStart = null;
@@ -1368,6 +1481,7 @@ productGrid.addEventListener("click", (event) => {
 
 productUpload.addEventListener("change", (event) => {
   readFileAsDataUrl(event.target.files[0], (src) => {
+    state.undoStack = [];
     document.querySelectorAll(".product-option").forEach((item) => item.classList.remove("is-active"));
     state.selectedProduct = null;
     state.productCleanups = [];
@@ -1386,15 +1500,20 @@ hidePhotoLogoBtn.addEventListener("click", () => {
 });
 
 autoHidePhotoLogoBtn.addEventListener("click", () => {
+  beginUndo("cleanup-auto");
   const found = autoHideExistingPhotoLogo();
+  if (found) commitUndo("cleanup-auto");
+  else cancelUndo("cleanup-auto");
   cleanupHint.textContent = found
     ? "Logo provável ocultado automaticamente. Use Limpar ocultações se precisar refazer."
     : "Não encontrei um logo óbvio. Use Ocultar logo da foto e arraste manualmente.";
 });
 
 clearPhotoLogoBtn.addEventListener("click", () => {
+  beginUndo("cleanup-clear");
   state.productCleanups = [];
   state.cleanupDraft = null;
+  commitUndo("cleanup-clear");
   draw();
 });
 
@@ -1410,16 +1529,20 @@ quickCats.addEventListener("click", (event) => {
 });
 
 logoUpload.addEventListener("change", (event) => {
+  state.undoStack = [];
   readFileAsDataUrl(event.target.files[0], loadLogo);
 });
 
 removeBgToggle.addEventListener("change", () => {
+  beginUndo("remove-background");
   state.removeBackground = removeBgToggle.checked;
   if (state.logoOriginal) state.logo = processLogoImage(state.logoOriginal);
+  commitUndo("remove-background");
   draw();
 });
 
 xControl.addEventListener("input", () => {
+  pushControlUndo("x");
   const previousX = state.logoX;
   state.logoX = Number(xControl.value);
   moveLogoQuad(state.logoX - previousX, 0);
@@ -1427,6 +1550,7 @@ xControl.addEventListener("input", () => {
 });
 
 yControl.addEventListener("input", () => {
+  pushControlUndo("y");
   const previousY = state.logoY;
   state.logoY = Number(yControl.value);
   moveLogoQuad(0, state.logoY - previousY);
@@ -1434,44 +1558,58 @@ yControl.addEventListener("input", () => {
 });
 
 scaleControl.addEventListener("input", () => {
+  pushControlUndo("scale");
   state.scale = Number(scaleControl.value) / 100;
   resetLogoQuad();
   draw();
 });
 
 rotationControl.addEventListener("input", () => {
+  pushControlUndo("rotation");
   state.rotation = Number(rotationControl.value);
   resetLogoQuad();
   draw();
 });
 
 opacityControl.addEventListener("input", () => {
+  pushControlUndo("opacity");
   state.opacity = Number(opacityControl.value) / 100;
   draw();
 });
 
 bendControl.addEventListener("input", () => {
+  pushControlUndo("bend");
   state.bend = Number(bendControl.value) / 100;
   draw();
 });
 
 logoColorMode.addEventListener("change", () => {
+  beginUndo("logo-color-mode");
   state.logoColorMode = logoColorMode.value;
   logoColorRow.classList.toggle("is-visible", state.logoColorMode === "custom");
   updateContrastAlert();
+  commitUndo("logo-color-mode");
   draw();
 });
 
 logoColorInput.addEventListener("input", () => {
+  pushControlUndo("logo-color");
   state.logoColor = logoColorInput.value;
   updateContrastAlert();
   draw();
 });
 
 techniqueControl.addEventListener("change", () => {
+  beginUndo("technique");
   state.technique = techniqueControl.value;
   updateContrastAlert();
+  commitUndo("technique");
   draw();
+});
+
+[xControl, yControl, scaleControl, rotationControl, opacityControl, bendControl, logoColorInput].forEach((control) => {
+  control.addEventListener("change", () => endControlUndo());
+  control.addEventListener("blur", () => endControlUndo());
 });
 
 canvas.addEventListener("pointerdown", handlePointerDown);
@@ -1483,6 +1621,7 @@ canvas.addEventListener(
   (event) => {
     if (!state.logo) return;
     event.preventDefault();
+    beginUndo("wheel");
     if (event.shiftKey) {
       state.rotation = clamp(state.rotation + (event.deltaY > 0 ? 4 : -4), -180, 180);
       rotationControl.value = state.rotation;
@@ -1491,6 +1630,7 @@ canvas.addEventListener(
       scaleControl.value = Math.round(state.scale * 100);
     }
     resetLogoQuad();
+    commitUndo("wheel");
     draw();
   },
   { passive: false },
@@ -1499,3 +1639,12 @@ canvas.addEventListener(
 downloadBtn.addEventListener("click", exportImage);
 approvalBtn.addEventListener("click", openApprovalSheet);
 printSheetBtn.addEventListener("click", openApprovalSheet);
+
+document.addEventListener("keydown", (event) => {
+  const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z";
+  if (!isUndo) return;
+  const editable = event.target.closest?.("input, textarea, select");
+  if (editable && editable.type !== "range" && editable.type !== "color") return;
+  event.preventDefault();
+  undoLastChange();
+});
