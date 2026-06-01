@@ -464,6 +464,35 @@ input[type="range"] {
   display: grid;
 }
 
+.color-wheel-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 4px 0 8px;
+}
+
+#logoColorWheel {
+  width: min(100%, 220px);
+  max-width: 220px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  cursor: crosshair;
+  box-shadow: 0 10px 24px rgba(22, 31, 27, 0.12);
+  touch-action: none;
+}
+
+.color-preview {
+  position: absolute;
+  right: calc(50% - 116px);
+  bottom: 8px;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #0f7a6c;
+  box-shadow: 0 0 0 1px rgba(22, 31, 27, 0.18), 0 8px 18px rgba(22, 31, 27, 0.18);
+}
+
 .color-swatches {
   display: grid;
   grid-template-columns: repeat(8, 38px);

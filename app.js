@@ -18,8 +18,8 @@ const rotationControl = document.querySelector("#rotationControl");
 const opacityControl = document.querySelector("#opacityControl");
 const bendControl = document.querySelector("#bendControl");
 const logoColorMode = document.querySelector("#logoColorMode");
-const logoColorInput = document.querySelector("#logoColorInput");
-const logoHexInput = document.querySelector("#logoHexInput");
+const logoColorWheel = document.querySelector("#logoColorWheel");
+const logoColorPreview = document.querySelector("#logoColorPreview");
 const colorSwatches = document.querySelector(".color-swatches");
 const techniqueControl = document.querySelector("#techniqueControl");
 const productGrid = document.querySelector("#productGrid");
@@ -44,7 +44,7 @@ const state = {
   opacity: Number(opacityControl.value) / 100,
   bend: Number(bendControl.value) / 100,
   logoColorMode: logoColorMode.value,
-  logoColor: logoColorInput.value,
+  logoColor: "#0f7a6c",
   technique: techniqueControl.value,
   removeBackground: removeBgToggle.checked,
   cleanupMode: false,
@@ -64,6 +64,7 @@ const state = {
 
 state.product.crossOrigin = "anonymous";
 loadProducts();
+drawColorWheel();
 
 async function loadProducts() {
   try {
@@ -367,11 +368,10 @@ function restoreUndoSnapshot(snapshot) {
   opacityControl.value = Math.round(state.opacity * 100);
   bendControl.value = Math.round(state.bend * 100);
   logoColorMode.value = state.logoColorMode;
-  logoColorInput.value = state.logoColor;
-  logoHexInput.value = state.logoColor;
   techniqueControl.value = state.technique;
   removeBgToggle.checked = state.removeBackground;
   syncColorSwatches();
+  drawColorWheel();
   if (state.logoOriginal) state.logo = processLogoImage(state.logoOriginal);
   updateContrastAlert();
 }
@@ -1256,7 +1256,7 @@ function colorLabel() {
     "#ffffff": "Branco",
     "#c9a227": "Dourado",
     "#a8b0b8": "Prata",
-    custom: logoColorInput.value,
+    custom: state.logoColor,
   };
   return labels[state.logoColorMode] || state.logoColorMode;
 }
@@ -1268,9 +1268,8 @@ function setCustomLogoColor(color, shouldPushUndo = true) {
   state.logoColor = normalized;
   state.logoColorMode = "custom";
   logoColorMode.value = "custom";
-  logoColorInput.value = normalized;
-  logoHexInput.value = normalized;
   syncColorSwatches();
+  drawColorWheel();
   updateContrastAlert();
   draw();
 }
@@ -1285,6 +1284,131 @@ function syncColorSwatches() {
   colorSwatches?.querySelectorAll("[data-color]").forEach((button) => {
     button.classList.toggle("is-active", normalizeHexColor(button.dataset.color) === normalizeHexColor(state.logoColor));
   });
+}
+
+function drawColorWheel() {
+  if (!logoColorWheel) return;
+  const wheelCtx = logoColorWheel.getContext("2d");
+  const size = logoColorWheel.width;
+  const radius = size / 2;
+  const imageData = wheelCtx.createImageData(size, size);
+  const data = imageData.data;
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const dx = x - radius;
+      const dy = y - radius;
+      const distanceFromCenter = Math.hypot(dx, dy);
+      const index = (y * size + x) * 4;
+      if (distanceFromCenter > radius - 1) {
+        data[index + 3] = 0;
+        continue;
+      }
+      const hue = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
+      const saturation = Math.min(1, distanceFromCenter / radius);
+      const lightness = 1 - saturation * 0.5;
+      const color = hslToRgb(hue, saturation, lightness);
+      data[index] = color.red;
+      data[index + 1] = color.green;
+      data[index + 2] = color.blue;
+      data[index + 3] = 255;
+    }
+  }
+
+  wheelCtx.putImageData(imageData, 0, 0);
+  drawColorWheelIndicator(wheelCtx, size);
+  if (logoColorPreview) logoColorPreview.style.background = state.logoColor;
+}
+
+function drawColorWheelIndicator(wheelCtx, size) {
+  const color = hexToRgb(state.logoColor);
+  if (!color) return;
+  const hsl = rgbToHsl(color.red, color.green, color.blue);
+  const radius = size / 2;
+  const distanceFromCenter = hsl.saturation * radius;
+  const angle = (hsl.hue * Math.PI) / 180;
+  const x = radius + Math.cos(angle) * distanceFromCenter;
+  const y = radius + Math.sin(angle) * distanceFromCenter;
+
+  wheelCtx.save();
+  wheelCtx.strokeStyle = "#ffffff";
+  wheelCtx.lineWidth = 4;
+  wheelCtx.beginPath();
+  wheelCtx.arc(x, y, 8, 0, Math.PI * 2);
+  wheelCtx.stroke();
+  wheelCtx.strokeStyle = "rgba(22, 31, 27, 0.55)";
+  wheelCtx.lineWidth = 2;
+  wheelCtx.stroke();
+  wheelCtx.restore();
+}
+
+function colorFromWheelEvent(event) {
+  const rect = logoColorWheel.getBoundingClientRect();
+  const size = logoColorWheel.width;
+  const scale = size / rect.width;
+  const x = (event.clientX - rect.left) * scale;
+  const y = (event.clientY - rect.top) * scale;
+  const radius = size / 2;
+  const dx = x - radius;
+  const dy = y - radius;
+  const distanceFromCenter = Math.min(Math.hypot(dx, dy), radius);
+  const hue = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
+  const saturation = distanceFromCenter / radius;
+  const lightness = 1 - saturation * 0.5;
+  return rgbToHex(hslToRgb(hue, saturation, lightness));
+}
+
+function hslToRgb(hue, saturation, lightness) {
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const segment = hue / 60;
+  const x = chroma * (1 - Math.abs((segment % 2) - 1));
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  if (segment >= 0 && segment < 1) [red, green, blue] = [chroma, x, 0];
+  else if (segment < 2) [red, green, blue] = [x, chroma, 0];
+  else if (segment < 3) [red, green, blue] = [0, chroma, x];
+  else if (segment < 4) [red, green, blue] = [0, x, chroma];
+  else if (segment < 5) [red, green, blue] = [x, 0, chroma];
+  else [red, green, blue] = [chroma, 0, x];
+  const match = lightness - chroma / 2;
+  return {
+    red: clampColor((red + match) * 255),
+    green: clampColor((green + match) * 255),
+    blue: clampColor((blue + match) * 255),
+  };
+}
+
+function rgbToHsl(red, green, blue) {
+  const r = red / 255;
+  const g = green / 255;
+  const b = blue / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+  let hue = 0;
+  if (delta !== 0) {
+    if (max === r) hue = 60 * (((g - b) / delta) % 6);
+    else if (max === g) hue = 60 * ((b - r) / delta + 2);
+    else hue = 60 * ((r - g) / delta + 4);
+  }
+  return { hue: (hue + 360) % 360, saturation, lightness };
+}
+
+function hexToRgb(value) {
+  const normalized = normalizeHexColor(value);
+  if (!normalized) return null;
+  return {
+    red: parseInt(normalized.slice(1, 3), 16),
+    green: parseInt(normalized.slice(3, 5), 16),
+    blue: parseInt(normalized.slice(5, 7), 16),
+  };
+}
+
+function rgbToHex({ red, green, blue }) {
+  return `#${[red, green, blue].map((value) => clampColor(value).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function techniqueLabel(value) {
@@ -1592,28 +1716,37 @@ logoColorMode.addEventListener("change", () => {
   state.logoColorMode = logoColorMode.value;
   if (state.logoColorMode !== "original" && state.logoColorMode !== "custom") {
     state.logoColor = state.logoColorMode;
-    logoColorInput.value = state.logoColor;
-    logoHexInput.value = state.logoColor;
   }
   syncColorSwatches();
+  drawColorWheel();
   updateContrastAlert();
   commitUndo("logo-color-mode");
   draw();
 });
 
-logoColorInput.addEventListener("input", () => {
-  setCustomLogoColor(logoColorInput.value);
+logoColorWheel.addEventListener("pointerdown", (event) => {
+  pushControlUndo("logo-color");
+  logoColorWheel.setPointerCapture(event.pointerId);
+  setCustomLogoColor(colorFromWheelEvent(event), false);
 });
 
-logoHexInput.addEventListener("input", () => {
-  const color = normalizeHexColor(logoHexInput.value);
-  if (color) setCustomLogoColor(color);
+logoColorWheel.addEventListener("pointermove", (event) => {
+  if (!logoColorWheel.hasPointerCapture(event.pointerId)) return;
+  setCustomLogoColor(colorFromWheelEvent(event), false);
+});
+
+["pointerup", "pointercancel"].forEach((eventName) => {
+  logoColorWheel.addEventListener(eventName, (event) => {
+    if (logoColorWheel.hasPointerCapture(event.pointerId)) logoColorWheel.releasePointerCapture(event.pointerId);
+    endControlUndo("logo-color");
+  });
 });
 
 colorSwatches.addEventListener("click", (event) => {
   const button = event.target.closest("[data-color]");
   if (!button) return;
   setCustomLogoColor(button.dataset.color);
+  endControlUndo("logo-color");
 });
 
 techniqueControl.addEventListener("change", () => {
@@ -1624,7 +1757,7 @@ techniqueControl.addEventListener("change", () => {
   draw();
 });
 
-[xControl, yControl, scaleControl, rotationControl, opacityControl, bendControl, logoColorInput, logoHexInput].forEach((control) => {
+[xControl, yControl, scaleControl, rotationControl, opacityControl, bendControl].forEach((control) => {
   control.addEventListener("change", () => endControlUndo());
   control.addEventListener("blur", () => endControlUndo());
 });
