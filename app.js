@@ -452,45 +452,38 @@ function drawProductCleanups(targetCtx, includeSelection) {
 }
 
 function hideLogoArea(targetCtx, rect) {
-  const normalized = expandRect(normalizeRect(rect), 8);
+  const normalized = expandRect(normalizeRect(rect), 4);
   if (normalized.width < 4 || normalized.height < 4) return;
 
-  const margin = Math.max(14, Math.min(46, Math.round(Math.max(normalized.width, normalized.height) * 0.45)));
-  const bounds = {
-    x: Math.max(0, Math.floor(normalized.x - margin)),
-    y: Math.max(0, Math.floor(normalized.y - margin)),
-    width: Math.min(canvas.width - Math.max(0, Math.floor(normalized.x - margin)), Math.ceil(normalized.width + margin * 2)),
-    height: Math.min(canvas.height - Math.max(0, Math.floor(normalized.y - margin)), Math.ceil(normalized.height + margin * 2)),
-  };
-  const imageData = targetCtx.getImageData(bounds.x, bounds.y, bounds.width, bounds.height);
+  const imageData = targetCtx.getImageData(0, 0, canvas.width, canvas.height);
   const original = new Uint8ClampedArray(imageData.data);
   const data = imageData.data;
-  const rectX = Math.round(normalized.x - bounds.x);
-  const rectY = Math.round(normalized.y - bounds.y);
-  const rectWidth = Math.round(normalized.width);
-  const rectHeight = Math.round(normalized.height);
-  const rectRight = rectX + rectWidth - 1;
-  const rectBottom = rectY + rectHeight - 1;
-  const feather = Math.max(4, Math.min(14, Math.round(Math.min(rectWidth, rectHeight) * 0.22)));
-  const borderStats = getBorderStats(original, bounds.width, bounds.height, rectX, rectY, rectWidth, rectHeight, margin);
+  const rectX = Math.max(1, Math.floor(normalized.x));
+  const rectY = Math.max(1, Math.floor(normalized.y));
+  const rectWidth = Math.min(canvas.width - rectX - 2, Math.ceil(normalized.width));
+  const rectHeight = Math.min(canvas.height - rectY - 2, Math.ceil(normalized.height));
+  const fill = estimateCleanupFill(original, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight);
+  const blurRadius = Math.max(5, Math.min(14, Math.round(Math.min(rectWidth, rectHeight) * 0.16)));
+  const feather = Math.max(6, Math.min(18, Math.round(Math.min(rectWidth, rectHeight) * 0.18)));
 
   for (let row = 0; row < rectHeight; row += 1) {
     for (let col = 0; col < rectWidth; col += 1) {
-      const x = rectX + col;
-      const y = rectY + row;
-      const pixel = synthesizeCleanupPixel(original, bounds.width, bounds.height, x, y, rectX, rectY, rectRight, rectBottom, margin, borderStats);
-      const index = (y * bounds.width + x) * 4;
+      const index = ((rectY + row) * canvas.width + rectX + col) * 4;
+      const blurred = averagePatchPixel(original, canvas.width, canvas.height, rectX + col, rectY + row, blurRadius);
       const edgeDistance = Math.min(col, row, rectWidth - 1 - col, rectHeight - 1 - row);
-      const cover = Math.min(1, Math.max(0, edgeDistance / feather));
-      data[index] = Math.round(original[index] * (1 - cover) + pixel[0] * cover);
-      data[index + 1] = Math.round(original[index + 1] * (1 - cover) + pixel[1] * cover);
-      data[index + 2] = Math.round(original[index + 2] * (1 - cover) + pixel[2] * cover);
+      const cover = 0.2 + smoothStep(Math.min(1, edgeDistance / feather)) * 0.8;
+      const tint = 0.42;
+      const cleanedRed = blurred.red * (1 - tint) + fill.red * tint;
+      const cleanedGreen = blurred.green * (1 - tint) + fill.green * tint;
+      const cleanedBlue = blurred.blue * (1 - tint) + fill.blue * tint;
+      data[index] = Math.round(original[index] * (1 - cover) + cleanedRed * cover);
+      data[index + 1] = Math.round(original[index + 1] * (1 - cover) + cleanedGreen * cover);
+      data[index + 2] = Math.round(original[index + 2] * (1 - cover) + cleanedBlue * cover);
       data[index + 3] = original[index + 3];
     }
   }
 
-  softenCleanupPatch(data, original, bounds.width, bounds.height, rectX, rectY, rectWidth, rectHeight);
-  targetCtx.putImageData(imageData, bounds.x, bounds.y);
+  targetCtx.putImageData(imageData, 0, 0);
 }
 
 function expandRect(rect, padding) {
@@ -502,144 +495,109 @@ function expandRect(rect, padding) {
   };
 }
 
-function getBorderStats(data, width, height, rectX, rectY, rectWidth, rectHeight, margin) {
-  let red = 0;
-  let green = 0;
-  let blue = 0;
-  let count = 0;
-  const rectRight = rectX + rectWidth;
-  const rectBottom = rectY + rectHeight;
+function estimateCleanupFill(data, width, height, rectX, rectY, rectWidth, rectHeight) {
+  const reds = [];
+  const greens = [];
+  const blues = [];
+  const padding = 16;
+  const outerX = Math.max(0, rectX - padding);
+  const outerY = Math.max(0, rectY - padding);
+  const outerRight = Math.min(width - 1, rectX + rectWidth + padding);
+  const outerBottom = Math.min(height - 1, rectY + rectHeight + padding);
+  const rectRight = rectX + rectWidth - 1;
+  const rectBottom = rectY + rectHeight - 1;
 
-  for (let row = 0; row < height; row += 2) {
-    for (let col = 0; col < width; col += 2) {
-      const nearX = col >= rectX - margin && col <= rectRight + margin;
-      const nearY = row >= rectY - margin && row <= rectBottom + margin;
-      const insideRect =
-        col >= rectX && col <= rectRight && row >= rectY && row <= rectBottom;
-      if (!nearX || !nearY || insideRect) continue;
-      const index = (row * width + col) * 4;
+  for (let y = outerY; y <= outerBottom; y += 2) {
+    for (let x = outerX; x <= outerRight; x += 2) {
+      const inside = x >= rectX && x <= rectRight && y >= rectY && y <= rectBottom;
+      if (inside) continue;
+      const closeToRect = x >= rectX - padding && x <= rectRight + padding && y >= rectY - padding && y <= rectBottom + padding;
+      if (!closeToRect) continue;
+      const index = (y * width + x) * 4;
       if (data[index + 3] < 20) continue;
-      const pixelRed = data[index];
-      const pixelGreen = data[index + 1];
-      const pixelBlue = data[index + 2];
-
-      red += pixelRed;
-      green += pixelGreen;
-      blue += pixelBlue;
-      count += 1;
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      const plainWhiteBackground = red > 248 && green > 248 && blue > 248;
+      if (plainWhiteBackground) continue;
+      reds.push(red);
+      greens.push(green);
+      blues.push(blue);
     }
   }
 
-  if (!count) return { red: 242, green: 246, blue: 244 };
-  return { red: red / count, green: green / count, blue: blue / count };
+  if (!reds.length) return { red: 242, green: 246, blue: 244 };
+  return {
+    red: median(reds),
+    green: median(greens),
+    blue: median(blues),
+  };
 }
 
-function synthesizeCleanupPixel(data, width, height, x, y, rectX, rectY, rectRight, rectBottom, margin, fallback) {
-  const maxJitter = Math.max(1, Math.min(7, Math.round(margin * 0.18)));
-  const jitterX = seededNoise(x, y, 11) * maxJitter * 2 - maxJitter;
-  const jitterY = seededNoise(x, y, 29) * maxJitter * 2 - maxJitter;
-  const horizontalRatio = rectRight === rectX ? 0.5 : (x - rectX) / (rectRight - rectX);
-  const verticalRatio = rectBottom === rectY ? 0.5 : (y - rectY) / (rectBottom - rectY);
-
-  const left = readCleanPixel(data, width, height, rectX - 2 - margin * 0.45 + jitterX, y + jitterY, fallback);
-  const right = readCleanPixel(data, width, height, rectRight + 2 + margin * 0.45 + jitterX, y - jitterY, fallback);
-  const top = readCleanPixel(data, width, height, x + jitterX, rectY - 2 - margin * 0.45 + jitterY, fallback);
-  const bottom = readCleanPixel(data, width, height, x - jitterX, rectBottom + 2 + margin * 0.45 - jitterY, fallback);
-
-  const horizontal = mixPixel(left, right, horizontalRatio);
-  const vertical = mixPixel(top, bottom, verticalRatio);
-  const verticalWeight = Math.min(0.58, Math.max(0.26, Math.abs(0.5 - horizontalRatio) + 0.22));
-  const mixed = mixPixel(horizontal, vertical, verticalWeight);
-  const texture = (seededNoise(x, y, 53) - 0.5) * 8;
-
-  return [
-    clampColor(mixed[0] + texture),
-    clampColor(mixed[1] + texture),
-    clampColor(mixed[2] + texture),
-    mixed[3] || 255,
-  ].map((value, index) => (Number.isFinite(value) ? value : [fallback.red, fallback.green, fallback.blue, 255][index]));
-}
-
-function softenCleanupPatch(data, original, width, height, rectX, rectY, rectWidth, rectHeight) {
-  const copy = new Uint8ClampedArray(data);
-  const passes = 2;
+function diffuseCleanupPatch(data, original, width, height, rectX, rectY, rectWidth, rectHeight) {
+  const passes = Math.max(22, Math.min(80, Math.round(Math.max(rectWidth, rectHeight) * 0.7)));
   for (let pass = 0; pass < passes; pass += 1) {
+    const copy = new Uint8ClampedArray(data);
     for (let row = 1; row < rectHeight - 1; row += 1) {
       for (let col = 1; col < rectWidth - 1; col += 1) {
         const x = rectX + col;
         const y = rectY + row;
-        const edgeDistance = Math.min(col, row, rectWidth - 1 - col, rectHeight - 1 - row);
-        if (edgeDistance < 2) continue;
         const index = (y * width + x) * 4;
         for (let channel = 0; channel < 3; channel += 1) {
           const average =
-            copy[index + channel] * 4 +
             copy[index - 4 + channel] +
             copy[index + 4 + channel] +
             copy[index - width * 4 + channel] +
             copy[index + width * 4 + channel];
-          data[index + channel] = Math.round(average / 8);
+          data[index + channel] = Math.round(average / 4);
         }
         data[index + 3] = original[index + 3];
       }
     }
-    copy.set(data);
   }
 }
 
-function readPixel(data, width, height, x, y) {
-  const safeX = Math.max(0, Math.min(width - 1, Math.round(x)));
-  const safeY = Math.max(0, Math.min(height - 1, Math.round(y)));
-  const index = (safeY * width + safeX) * 4;
-  return [data[index], data[index + 1], data[index + 2], data[index + 3]];
-}
-
-function readCleanPixel(data, width, height, x, y, fallback) {
-  const base = readPixel(data, width, height, x, y);
-  if (isNaturalPatchPixel(base)) return base;
-
-  for (let radius = 2; radius <= 14; radius += 2) {
-    const candidates = [
-      readPixel(data, width, height, x - radius, y),
-      readPixel(data, width, height, x + radius, y),
-      readPixel(data, width, height, x, y - radius),
-      readPixel(data, width, height, x, y + radius),
-      readPixel(data, width, height, x - radius, y - radius),
-      readPixel(data, width, height, x + radius, y + radius),
-    ];
-    const natural = candidates.find(isNaturalPatchPixel);
-    if (natural) return natural;
+function averagePatchPixel(data, width, height, centerX, centerY, radius) {
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+  for (let y = Math.max(0, centerY - radius); y <= Math.min(height - 1, centerY + radius); y += 2) {
+    for (let x = Math.max(0, centerX - radius); x <= Math.min(width - 1, centerX + radius); x += 2) {
+      const index = (y * width + x) * 4;
+      if (data[index + 3] < 20) continue;
+      red += data[index];
+      green += data[index + 1];
+      blue += data[index + 2];
+      count += 1;
+    }
   }
-
-  return [fallback.red, fallback.green, fallback.blue, 255];
+  if (!count) return { red: 242, green: 246, blue: 244 };
+  return { red: red / count, green: green / count, blue: blue / count };
 }
 
-function isNaturalPatchPixel(pixel) {
-  if (!pixel || pixel[3] < 20) return false;
-  const red = pixel[0];
-  const green = pixel[1];
-  const blue = pixel[2];
-  const max = Math.max(red, green, blue);
-  const min = Math.min(red, green, blue);
-  const saturation = max === 0 ? 0 : (max - min) / max;
-  const brightWhite = red > 245 && green > 245 && blue > 245;
-  const vividLogoColor = saturation > 0.34 && max - min > 54;
-  return !brightWhite && !vividLogoColor;
+function featherCleanupPatch(data, original, width, rectX, rectY, rectWidth, rectHeight) {
+  const feather = Math.max(5, Math.min(16, Math.round(Math.min(rectWidth, rectHeight) * 0.18)));
+  for (let row = 0; row < rectHeight; row += 1) {
+    for (let col = 0; col < rectWidth; col += 1) {
+      const edgeDistance = Math.min(col, row, rectWidth - 1 - col, rectHeight - 1 - row);
+      const amount = smoothStep(Math.min(1, edgeDistance / feather));
+      const cover = 0.68 + amount * 0.32;
+      const index = ((rectY + row) * width + rectX + col) * 4;
+      data[index] = Math.round(original[index] * (1 - cover) + data[index] * cover);
+      data[index + 1] = Math.round(original[index + 1] * (1 - cover) + data[index + 1] * cover);
+      data[index + 2] = Math.round(original[index + 2] * (1 - cover) + data[index + 2] * cover);
+    }
+  }
 }
 
-function mixPixel(a, b, amount) {
-  const ratio = Math.max(0, Math.min(1, amount));
-  return [
-    a[0] * (1 - ratio) + b[0] * ratio,
-    a[1] * (1 - ratio) + b[1] * ratio,
-    a[2] * (1 - ratio) + b[2] * ratio,
-    a[3] * (1 - ratio) + b[3] * ratio,
-  ];
+function median(values) {
+  const sorted = values.slice().sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
-function seededNoise(x, y, salt = 0) {
-  const value = Math.sin((x * 12.9898 + y * 78.233 + salt * 37.719) * 43758.5453);
-  return value - Math.floor(value);
+function smoothStep(value) {
+  return value * value * (3 - 2 * value);
 }
 
 function clampColor(value) {
