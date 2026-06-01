@@ -30,16 +30,27 @@ if errorlevel 1 (
   )
 )
 
-git remote remove origin >nul 2>nul
-git remote add origin %REMOTE%
-git branch -M main
-git add .
-git commit -m "Publish Elo Preview" >nul 2>nul
-git push -u origin main
+%GH% repo view %REPO% >nul 2>nul
 if errorlevel 1 (
-  echo O envio falhou. Verifique se o repositorio %REPO% existe e se voce autorizou o login do GitHub.
-  pause
-  exit /b 1
+  echo Criando o repositorio %REPO%...
+  %GH% repo create %REPO% --public --source=. --remote=origin --push
+  if errorlevel 1 (
+    echo Nao foi possivel criar e enviar o repositorio.
+    pause
+    exit /b 1
+  )
+) else (
+  git remote remove origin >nul 2>nul
+  git remote add origin %REMOTE%
+  git branch -M main
+  git add .
+  git commit -m "Publish Elo Preview" >nul 2>nul
+  git push -u origin main
+  if errorlevel 1 (
+    echo O envio falhou. Verifique se o repositorio %REPO% existe e se voce autorizou o login do GitHub.
+    pause
+    exit /b 1
+  )
 )
 
 "%GH%" api repos/%REPO%/pages -X POST -f source.branch=main -f source.path=/ >nul 2>nul
