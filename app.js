@@ -509,10 +509,10 @@ function drawProduct(targetCtx) {
 }
 
 function drawProductCleanups(targetCtx, includeSelection) {
-  state.productCleanups.filter(Boolean).forEach((cleanup) => {
+  [...state.productCleanups, state.cleanupDraft].filter(Boolean).forEach((cleanup) => {
     hideLogoArea(targetCtx, cleanup);
+    if (includeSelection && cleanup === state.cleanupDraft) drawCleanupDraft(targetCtx, cleanup);
   });
-  if (includeSelection && state.cleanupDraft) drawCleanupDraft(targetCtx, state.cleanupDraft);
 }
 
 function hideLogoArea(targetCtx, cleanup) {
@@ -531,20 +531,18 @@ function hideLogoArea(targetCtx, cleanup) {
   const opacityAmount = clamp(settings.opacity / 100, 0.01, 1);
   const featherAmount = clamp(settings.feather / 100, 0.01, 1);
   const blurAmount = clamp(settings.blur / 100, 0.01, 1);
-  const mask = cleanup.type === "lasso" ? createLassoMask(cleanup, rectX, rectY, rectWidth, rectHeight) : null;
+  const mask = cleanup.type === "lasso" ? createLassoMask(cleanup) : null;
   const feather = Math.max(2, Math.min(32, Math.round(2 + featherAmount * 30)));
   const blurRadius = Math.max(2, Math.min(24, Math.round(2 + blurAmount * 20)));
   const sampleRadius = Math.max(10, Math.min(44, Math.round(12 + blurAmount * 32)));
   const fill = estimateCleanupFill(original, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight);
-  state._activeCleanupBounds = { x: rectX, y: rectY, width: rectWidth, height: rectHeight };
   const patch = createInpaintPatch(original, mask, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight, sampleRadius);
-  state._activeCleanupBounds = null;
   softenPatch(patch, rectWidth, rectHeight, blurRadius);
 
   for (let row = 0; row < rectHeight; row += 1) {
     for (let col = 0; col < rectWidth; col += 1) {
       const index = ((rectY + row) * canvas.width + rectX + col) * 4;
-      const maskCover = mask ? mask[(row * rectWidth + col) * 4 + 3] / 255 : 1;
+      const maskCover = mask ? mask[index + 3] / 255 : 1;
       if (maskCover <= 0) continue;
       const edgeDistance = Math.min(col, row, rectWidth - 1 - col, rectHeight - 1 - row);
       const rectCover = 0.2 + smoothStep(Math.min(1, edgeDistance / feather)) * 0.8;
@@ -578,23 +576,22 @@ function getCleanupBounds(cleanup, padding = 0) {
   return { x, y, width: right - x, height: bottom - y };
 }
 
-function createLassoMask(cleanup, rectX, rectY, rectWidth, rectHeight) {
+function createLassoMask(cleanup) {
   const maskCanvas = document.createElement("canvas");
-  maskCanvas.width = rectWidth;
-  maskCanvas.height = rectHeight;
+  maskCanvas.width = canvas.width;
+  maskCanvas.height = canvas.height;
   const maskCtx = maskCanvas.getContext("2d");
-  const localPoints = cleanup.points.map((point) => ({ x: point.x - rectX, y: point.y - rectY }));
-  drawLassoPath(maskCtx, localPoints);
+  drawLassoPath(maskCtx, cleanup.points);
   maskCtx.fillStyle = "#000";
   maskCtx.fill();
   const feather = Math.max(2, Math.round(2 + (state.cleanupSettings.feather / 100) * 30));
   for (let step = feather; step >= 1; step -= 1) {
-    drawLassoPath(maskCtx, localPoints);
+    drawLassoPath(maskCtx, cleanup.points);
     maskCtx.strokeStyle = `rgba(0,0,0,${(step / feather) * 0.45})`;
     maskCtx.lineWidth = step * 2;
     maskCtx.stroke();
   }
-  return maskCtx.getImageData(0, 0, rectWidth, rectHeight).data;
+  return maskCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 }
 
 function createInpaintPatch(original, mask, width, height, rectX, rectY, rectWidth, rectHeight, sampleRadius) {
@@ -637,7 +634,7 @@ function sampleOutsideSelection(original, mask, width, height, x, y, radius, fal
       if (sampleX < 0 || sampleX >= width || sampleY < 0 || sampleY >= height) continue;
       const index = (sampleY * width + sampleX) * 4;
       if (original[index + 3] < 20) continue;
-      if (mask && isPointInLocalMask(mask, sampleX, sampleY, width, x, y)) continue;
+      if (mask && mask[index + 3] > 18) continue;
       const red = original[index];
       const green = original[index + 1];
       const blue = original[index + 2];
@@ -665,15 +662,6 @@ function sampleOutsideSelection(original, mask, width, height, x, y, radius, fal
     green: clampColor(green / totalWeight),
     blue: clampColor(blue / totalWeight),
   };
-}
-
-function isPointInLocalMask(mask, sampleX, sampleY, canvasWidth, currentX, currentY) {
-  const bounds = state._activeCleanupBounds;
-  if (!bounds) return false;
-  const localX = sampleX - bounds.x;
-  const localY = sampleY - bounds.y;
-  if (localX < 0 || localY < 0 || localX >= bounds.width || localY >= bounds.height) return false;
-  return mask[(localY * bounds.width + localX) * 4 + 3] > 18;
 }
 
 function softenPatch(patch, width, height, radius) {
