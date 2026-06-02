@@ -1199,19 +1199,12 @@ function createSafeAreaMask() {
 }
 
 function applyTechniqueStyle(targetCtx) {
-  const filters = {
-    laser: "contrast(1.22) saturate(0.62) brightness(0.9)",
-    silk: "contrast(1.06) saturate(1.08)",
-    uv: "contrast(1.08) saturate(1.22)",
-    tampo: "contrast(1.02) saturate(0.95)",
-    bordado: "contrast(1.12) saturate(0.9)",
-    "baixo-relevo": "contrast(1.18) saturate(0.45) brightness(0.86)",
-  };
-  targetCtx.globalCompositeOperation = state.technique === "uv" || state.technique === "silk" ? "source-over" : "multiply";
-  targetCtx.filter = filters[state.technique] || "none";
+  targetCtx.globalCompositeOperation = "source-over";
+  targetCtx.filter = "none";
 }
 
 function drawTechniqueHighlight(targetCtx, width, height) {
+  if (state.logoColorMode === "original") return;
   if (!["laser", "uv", "baixo-relevo"].includes(state.technique)) return;
   targetCtx.save();
   targetCtx.translate(state.logoX, state.logoY);
@@ -1348,7 +1341,7 @@ function resetLogoSettings() {
   state.scale = 0.28;
   state.rotation = -8;
   state.opacity = 0.92;
-  state.bend = 0.28;
+  state.bend = 0;
   state.logoColorMode = "original";
   state.logoSelected = true;
   resetLogoQuad();
