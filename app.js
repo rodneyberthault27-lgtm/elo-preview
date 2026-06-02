@@ -460,19 +460,137 @@ function processLogoImage(image) {
 
   if (state.removeBackground) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
-    const data = imageData.data;
-    for (let index = 0; index < data.length; index += 4) {
-      const red = data[index];
-      const green = data[index + 1];
-      const blue = data[index + 2];
-      const alpha = data[index + 3];
-      const nearWhite = red > 224 && green > 224 && blue > 224;
-      if (alpha > 0 && nearWhite) data[index + 3] = 0;
-    }
+    removeLogoBackground(imageData, logoCanvas.width, logoCanvas.height);
     logoCtx.putImageData(imageData, 0, 0);
   }
 
   return logoCanvas;
+}
+
+function removeLogoBackground(imageData, width, height) {
+  if (!width || !height) return;
+
+  const data = imageData.data;
+  const background = estimateLogoBackgroundFromEdges(data, width, height);
+  const visited = new Uint8Array(width * height);
+  const queue = [];
+
+  const tryAdd = (x, y) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const pixelIndex = y * width + x;
+    if (visited[pixelIndex]) return;
+    const dataIndex = pixelIndex * 4;
+    if (!isLogoBackgroundPixel(data, dataIndex, background, background.tolerance)) return;
+    visited[pixelIndex] = 1;
+    queue.push(pixelIndex);
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    tryAdd(x, 0);
+    tryAdd(x, height - 1);
+  }
+  for (let y = 0; y < height; y += 1) {
+    tryAdd(0, y);
+    tryAdd(width - 1, y);
+  }
+
+  for (let head = 0; head < queue.length; head += 1) {
+    const pixelIndex = queue[head];
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    tryAdd(x + 1, y);
+    tryAdd(x - 1, y);
+    tryAdd(x, y + 1);
+    tryAdd(x, y - 1);
+  }
+
+  for (let pixelIndex = 0; pixelIndex < visited.length; pixelIndex += 1) {
+    if (!visited[pixelIndex]) continue;
+    data[pixelIndex * 4 + 3] = 0;
+  }
+
+  softenLogoBackgroundEdge(data, visited, width, height, background);
+}
+
+function estimateLogoBackgroundFromEdges(data, width, height) {
+  const samples = [];
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 90));
+  const addSample = (x, y) => {
+    const index = (y * width + x) * 4;
+    if (data[index + 3] <= 10) return;
+    samples.push({
+      red: data[index],
+      green: data[index + 1],
+      blue: data[index + 2],
+    });
+  };
+
+  for (let x = 0; x < width; x += step) {
+    addSample(x, 0);
+    addSample(x, height - 1);
+  }
+  for (let y = 0; y < height; y += step) {
+    addSample(0, y);
+    addSample(width - 1, y);
+  }
+
+  if (!samples.length) return { red: 255, green: 255, blue: 255, tolerance: 52, softTolerance: 82 };
+
+  const red = Math.round(median(samples.map((sample) => sample.red)));
+  const green = Math.round(median(samples.map((sample) => sample.green)));
+  const blue = Math.round(median(samples.map((sample) => sample.blue)));
+  const luminance = red * 0.299 + green * 0.587 + blue * 0.114;
+  const spread = median(samples.map((sample) => colorDistance(sample.red, sample.green, sample.blue, red, green, blue)));
+  const baseTolerance = luminance < 45 || luminance > 215 ? 52 : 44;
+  const tolerance = clamp(baseTolerance + spread * 1.35, 36, 84);
+
+  return {
+    red,
+    green,
+    blue,
+    tolerance,
+    softTolerance: tolerance + 30,
+  };
+}
+
+function isLogoBackgroundPixel(data, index, background, tolerance) {
+  const alpha = data[index + 3];
+  if (alpha <= 10) return true;
+  const distanceToBackground = colorDistance(data[index], data[index + 1], data[index + 2], background.red, background.green, background.blue);
+  return distanceToBackground <= tolerance;
+}
+
+function softenLogoBackgroundEdge(data, backgroundMask, width, height, background) {
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const pixelIndex = y * width + x;
+      if (backgroundMask[pixelIndex]) continue;
+      if (!hasBackgroundNeighbor(backgroundMask, width, pixelIndex)) continue;
+
+      const dataIndex = pixelIndex * 4;
+      const distanceToBackground = colorDistance(
+        data[dataIndex],
+        data[dataIndex + 1],
+        data[dataIndex + 2],
+        background.red,
+        background.green,
+        background.blue,
+      );
+      if (distanceToBackground > background.softTolerance) continue;
+
+      const fade = 1 - clamp((distanceToBackground - background.tolerance) / (background.softTolerance - background.tolerance), 0, 1);
+      data[dataIndex + 3] = Math.round(data[dataIndex + 3] * (1 - fade * 0.55));
+    }
+  }
+}
+
+function hasBackgroundNeighbor(backgroundMask, width, pixelIndex) {
+  return (
+    backgroundMask[pixelIndex - 1] ||
+    backgroundMask[pixelIndex + 1] ||
+    backgroundMask[pixelIndex - width] ||
+    backgroundMask[pixelIndex + width]
+  );
 }
 
 function draw() {
