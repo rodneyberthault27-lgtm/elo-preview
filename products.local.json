@@ -1,5 +1,49 @@
 [
   {
+    "code": "BDG001",
+    "name": "Balde de Gelo Inox com Tampa",
+    "category": "Baldes de Gelo",
+    "src": "assets/local-products/bdg001.jpg",
+    "color": "Inox",
+    "techniques": [
+      "Laser",
+      "Serigrafia",
+      "UV digital"
+    ],
+    "dimensions": "A definir",
+    "area": "Area frontal do balde",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 360,
+      "y": 300,
+      "width": 480,
+      "height": 260
+    }
+  },
+  {
+    "code": "BDG002",
+    "name": "Balde de Gelo Metalico com Alca",
+    "category": "Baldes de Gelo",
+    "src": "assets/local-products/bdg002.jpg",
+    "color": "Inox",
+    "techniques": [
+      "Laser",
+      "Serigrafia",
+      "UV digital"
+    ],
+    "dimensions": "A definir",
+    "area": "Area frontal do balde",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 350,
+      "y": 300,
+      "width": 500,
+      "height": 285
+    }
+  },
+  {
     "code": "MP028",
     "name": "Mouse Pad Personalizado em Poliester Flexivel",
     "category": "Mouse Pads",
