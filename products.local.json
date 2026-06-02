@@ -1,5 +1,27 @@
 [
   {
+    "code": "MP028",
+    "name": "Mouse Pad Personalizado em Poliester Flexivel",
+    "category": "Mouse Pads",
+    "src": "assets/local-products/mp028.jpg",
+    "color": "A definir",
+    "techniques": [
+      "Sublimacao",
+      "UV digital",
+      "Serigrafia"
+    ],
+    "dimensions": "A definir",
+    "area": "Area plana do mouse pad",
+    "minimumQuantity": "A definir",
+    "removePreviewBg": true,
+    "safeArea": {
+      "x": 300,
+      "y": 210,
+      "width": 600,
+      "height": 390
+    }
+  },
+  {
     "code": "SC085",
     "name": "Produto SC085",
     "category": "Outros",
