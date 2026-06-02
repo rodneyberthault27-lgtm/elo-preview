@@ -516,7 +516,7 @@ function drawProductCleanups(targetCtx, includeSelection) {
 }
 
 function hideLogoArea(targetCtx, cleanup) {
-  const normalized = getCleanupBounds(cleanup, 4);
+  const normalized = getCleanupBounds(cleanup, 8);
   if (normalized.width < 4 || normalized.height < 4) return;
 
   const imageData = targetCtx.getImageData(0, 0, canvas.width, canvas.height);
@@ -526,29 +526,33 @@ function hideLogoArea(targetCtx, cleanup) {
   const rectY = Math.max(1, Math.floor(normalized.y));
   const rectWidth = Math.min(canvas.width - rectX - 2, Math.ceil(normalized.width));
   const rectHeight = Math.min(canvas.height - rectY - 2, Math.ceil(normalized.height));
-  const fill = estimateCleanupFill(original, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight);
   const settings = state.cleanupSettings;
   const intensityAmount = clamp(settings.intensity / 100, 0.01, 1);
   const opacityAmount = clamp(settings.opacity / 100, 0.01, 1);
   const featherAmount = clamp(settings.feather / 100, 0.01, 1);
   const blurAmount = clamp(settings.blur / 100, 0.01, 1);
   const mask = cleanup.type === "lasso" ? createLassoMask(cleanup) : null;
-  const blurRadius = Math.max(2, Math.min(26, Math.round(2 + blurAmount * 22 + Math.min(rectWidth, rectHeight) * 0.025)));
   const feather = Math.max(2, Math.min(32, Math.round(2 + featherAmount * 30)));
-  const tint = 0.12 + intensityAmount * 0.46;
+  const blurRadius = Math.max(2, Math.min(24, Math.round(2 + blurAmount * 20)));
+  const sampleRadius = Math.max(10, Math.min(44, Math.round(12 + blurAmount * 32)));
+  const fill = estimateCleanupFill(original, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight);
+  const patch = createInpaintPatch(original, mask, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight, sampleRadius);
+  softenPatch(patch, rectWidth, rectHeight, blurRadius);
 
   for (let row = 0; row < rectHeight; row += 1) {
     for (let col = 0; col < rectWidth; col += 1) {
       const index = ((rectY + row) * canvas.width + rectX + col) * 4;
       const maskCover = mask ? mask[index + 3] / 255 : 1;
       if (maskCover <= 0) continue;
-      const blurred = averagePatchPixel(original, canvas.width, canvas.height, rectX + col, rectY + row, blurRadius);
       const edgeDistance = Math.min(col, row, rectWidth - 1 - col, rectHeight - 1 - row);
       const rectCover = 0.2 + smoothStep(Math.min(1, edgeDistance / feather)) * 0.8;
-      const cover = maskCover * opacityAmount * intensityAmount * (cleanup.type === "lasso" ? 1 : rectCover);
-      const cleanedRed = blurred.red * (1 - tint) + fill.red * tint;
-      const cleanedGreen = blurred.green * (1 - tint) + fill.green * tint;
-      const cleanedBlue = blurred.blue * (1 - tint) + fill.blue * tint;
+      const edgeCover = cleanup.type === "lasso" ? smoothStep(maskCover) : rectCover;
+      const cover = clamp(opacityAmount * (0.35 + intensityAmount * 0.65) * edgeCover, 0, 1);
+      const patchIndex = (row * rectWidth + col) * 4;
+      const textureMix = 0.72 + intensityAmount * 0.24;
+      const cleanedRed = patch[patchIndex] * textureMix + fill.red * (1 - textureMix);
+      const cleanedGreen = patch[patchIndex + 1] * textureMix + fill.green * (1 - textureMix);
+      const cleanedBlue = patch[patchIndex + 2] * textureMix + fill.blue * (1 - textureMix);
       data[index] = Math.round(original[index] * (1 - cover) + cleanedRed * cover);
       data[index + 1] = Math.round(original[index + 1] * (1 - cover) + cleanedGreen * cover);
       data[index + 2] = Math.round(original[index + 2] * (1 - cover) + cleanedBlue * cover);
@@ -588,6 +592,95 @@ function createLassoMask(cleanup) {
     maskCtx.stroke();
   }
   return maskCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+}
+
+function createInpaintPatch(original, mask, width, height, rectX, rectY, rectWidth, rectHeight, sampleRadius) {
+  const patch = new Uint8ClampedArray(rectWidth * rectHeight * 4);
+  const fallback = estimateCleanupFill(original, width, height, rectX, rectY, rectWidth, rectHeight);
+
+  for (let row = 0; row < rectHeight; row += 1) {
+    for (let col = 0; col < rectWidth; col += 1) {
+      const x = rectX + col;
+      const y = rectY + row;
+      const patchIndex = (row * rectWidth + col) * 4;
+      const sampled = sampleOutsideSelection(original, mask, width, height, x, y, sampleRadius, fallback);
+      patch[patchIndex] = sampled.red;
+      patch[patchIndex + 1] = sampled.green;
+      patch[patchIndex + 2] = sampled.blue;
+      patch[patchIndex + 3] = 255;
+    }
+  }
+
+  return patch;
+}
+
+function sampleOutsideSelection(original, mask, width, height, x, y, radius, fallback) {
+  const directions = [
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
+    { x: -0.7, y: -0.7 },
+    { x: 0.7, y: -0.7 },
+    { x: -0.7, y: 0.7 },
+    { x: 0.7, y: 0.7 },
+  ];
+  const samples = [];
+
+  directions.forEach((direction) => {
+    for (let step = 3; step <= radius; step += 3) {
+      const sampleX = Math.round(x + direction.x * step);
+      const sampleY = Math.round(y + direction.y * step);
+      if (sampleX < 0 || sampleX >= width || sampleY < 0 || sampleY >= height) continue;
+      const index = (sampleY * width + sampleX) * 4;
+      if (original[index + 3] < 20) continue;
+      if (mask && mask[index + 3] > 18) continue;
+      const red = original[index];
+      const green = original[index + 1];
+      const blue = original[index + 2];
+      if (red > 248 && green > 248 && blue > 248) continue;
+      samples.push({ red, green, blue, weight: 1 / Math.max(step, 1) });
+      break;
+    }
+  });
+
+  if (!samples.length) return fallback;
+
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let totalWeight = 0;
+  samples.forEach((sample) => {
+    red += sample.red * sample.weight;
+    green += sample.green * sample.weight;
+    blue += sample.blue * sample.weight;
+    totalWeight += sample.weight;
+  });
+
+  return {
+    red: clampColor(red / totalWeight),
+    green: clampColor(green / totalWeight),
+    blue: clampColor(blue / totalWeight),
+  };
+}
+
+function softenPatch(patch, width, height, radius) {
+  const passes = Math.max(1, Math.min(6, Math.round(radius / 4)));
+  for (let pass = 0; pass < passes; pass += 1) {
+    const copy = new Uint8ClampedArray(patch);
+    for (let row = 1; row < height - 1; row += 1) {
+      for (let col = 1; col < width - 1; col += 1) {
+        const index = (row * width + col) * 4;
+        for (let channel = 0; channel < 3; channel += 1) {
+          patch[index + channel] = Math.round(
+            copy[index + channel] * 0.42 +
+              (copy[index - 4 + channel] + copy[index + 4 + channel] + copy[index - width * 4 + channel] + copy[index + width * 4 + channel]) *
+                0.145,
+          );
+        }
+      }
+    }
+  }
 }
 
 function expandRect(rect, padding) {
