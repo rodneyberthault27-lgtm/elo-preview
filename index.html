@@ -63,10 +63,24 @@
             <button id="autoHidePhotoLogoBtn" class="tool-button" type="button">Detectar logo</button>
             <button id="clearPhotoLogoBtn" class="tool-button" type="button">Limpar ocultações</button>
           </div>
-          <label class="range-row cleanup-precision">
-            <span>Precisão do laço</span>
-            <input id="cleanupPrecisionControl" type="range" min="1" max="100" value="72" />
-          </label>
+          <div class="cleanup-controls" aria-label="Controles para ocultar logo">
+            <label class="range-row">
+              <span>Intensidade</span>
+              <input id="cleanupIntensityControl" type="range" min="1" max="100" value="82" />
+            </label>
+            <label class="range-row">
+              <span>Opacidade</span>
+              <input id="cleanupOpacityControl" type="range" min="1" max="100" value="92" />
+            </label>
+            <label class="range-row">
+              <span>Borda suave</span>
+              <input id="cleanupFeatherControl" type="range" min="1" max="100" value="62" />
+            </label>
+            <label class="range-row">
+              <span>Desfoque</span>
+              <input id="cleanupBlurControl" type="range" min="1" max="100" value="46" />
+            </label>
+          </div>
           <p id="cleanupHint" class="hint">Ative e contorne o logo antigo com o mouse.</p>
         </section>
 
@@ -170,6 +184,6 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=20260602-lasso-cleanup"></script>
+    <script src="./app.js?v=20260602-cleanup-controls"></script>
   </body>
 </html>

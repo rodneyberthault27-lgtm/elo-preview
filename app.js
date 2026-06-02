@@ -11,7 +11,10 @@ const hidePhotoLogoBtn = document.querySelector("#hidePhotoLogoBtn");
 const autoHidePhotoLogoBtn = document.querySelector("#autoHidePhotoLogoBtn");
 const clearPhotoLogoBtn = document.querySelector("#clearPhotoLogoBtn");
 const cleanupHint = document.querySelector("#cleanupHint");
-const cleanupPrecisionControl = document.querySelector("#cleanupPrecisionControl");
+const cleanupIntensityControl = document.querySelector("#cleanupIntensityControl");
+const cleanupOpacityControl = document.querySelector("#cleanupOpacityControl");
+const cleanupFeatherControl = document.querySelector("#cleanupFeatherControl");
+const cleanupBlurControl = document.querySelector("#cleanupBlurControl");
 const removeBgToggle = document.querySelector("#removeBgToggle");
 const xControl = document.querySelector("#xControl");
 const yControl = document.querySelector("#yControl");
@@ -54,7 +57,12 @@ const state = {
   productCleanups: [],
   cleanupDraft: null,
   cleanupStart: null,
-  cleanupPrecision: Number(cleanupPrecisionControl.value),
+  cleanupSettings: {
+    intensity: Number(cleanupIntensityControl.value),
+    opacity: Number(cleanupOpacityControl.value),
+    feather: Number(cleanupFeatherControl.value),
+    blur: Number(cleanupBlurControl.value),
+  },
   logoQuad: null,
   logoSelected: true,
   activeHandle: null,
@@ -295,6 +303,20 @@ function cloneCleanup(cleanup) {
   return { ...cleanup };
 }
 
+function readCleanupSettings() {
+  return {
+    intensity: Number(cleanupIntensityControl.value),
+    opacity: Number(cleanupOpacityControl.value),
+    feather: Number(cleanupFeatherControl.value),
+    blur: Number(cleanupBlurControl.value),
+  };
+}
+
+function syncCleanupSettingsFromControls() {
+  state.cleanupSettings = readCleanupSettings();
+  draw();
+}
+
 function createUndoSnapshot() {
   return {
     logoX: state.logoX,
@@ -307,7 +329,7 @@ function createUndoSnapshot() {
     logoColor: state.logoColor,
     technique: state.technique,
     removeBackground: state.removeBackground,
-    cleanupPrecision: state.cleanupPrecision,
+    cleanupSettings: { ...state.cleanupSettings },
     productCleanups: state.productCleanups.map(cloneCleanup),
     logoQuad: cloneQuad(),
     logoSelected: state.logoSelected,
@@ -371,7 +393,7 @@ function restoreUndoSnapshot(snapshot) {
   state.logoColor = snapshot.logoColor;
   state.technique = snapshot.technique;
   state.removeBackground = snapshot.removeBackground;
-  state.cleanupPrecision = snapshot.cleanupPrecision ?? Number(cleanupPrecisionControl.value);
+  state.cleanupSettings = snapshot.cleanupSettings ? { ...snapshot.cleanupSettings } : readCleanupSettings();
   state.productCleanups = snapshot.productCleanups.map(cloneCleanup);
   state.cleanupDraft = null;
   state.cleanupStart = null;
@@ -398,7 +420,10 @@ function syncAllControls() {
   logoColorMode.value = state.logoColorMode;
   techniqueControl.value = state.technique;
   removeBgToggle.checked = state.removeBackground;
-  cleanupPrecisionControl.value = Math.round(state.cleanupPrecision);
+  cleanupIntensityControl.value = Math.round(state.cleanupSettings.intensity);
+  cleanupOpacityControl.value = Math.round(state.cleanupSettings.opacity);
+  cleanupFeatherControl.value = Math.round(state.cleanupSettings.feather);
+  cleanupBlurControl.value = Math.round(state.cleanupSettings.blur);
 }
 
 function loadLogo(src, file) {
@@ -502,12 +527,15 @@ function hideLogoArea(targetCtx, cleanup) {
   const rectWidth = Math.min(canvas.width - rectX - 2, Math.ceil(normalized.width));
   const rectHeight = Math.min(canvas.height - rectY - 2, Math.ceil(normalized.height));
   const fill = estimateCleanupFill(original, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight);
-  const precision = cleanup.precision ?? state.cleanupPrecision;
-  const precisionAmount = clamp(precision / 100, 0.01, 1);
+  const settings = state.cleanupSettings;
+  const intensityAmount = clamp(settings.intensity / 100, 0.01, 1);
+  const opacityAmount = clamp(settings.opacity / 100, 0.01, 1);
+  const featherAmount = clamp(settings.feather / 100, 0.01, 1);
+  const blurAmount = clamp(settings.blur / 100, 0.01, 1);
   const mask = cleanup.type === "lasso" ? createLassoMask(cleanup) : null;
-  const blurRadius = Math.max(4, Math.min(18, Math.round((1 - precisionAmount) * 14 + Math.min(rectWidth, rectHeight) * 0.08)));
-  const feather = Math.max(5, Math.min(20, Math.round((1 - precisionAmount) * 16 + Math.min(rectWidth, rectHeight) * 0.08)));
-  const tint = cleanup.type === "lasso" ? 0.22 + (1 - precisionAmount) * 0.34 : 0.42;
+  const blurRadius = Math.max(2, Math.min(26, Math.round(2 + blurAmount * 22 + Math.min(rectWidth, rectHeight) * 0.025)));
+  const feather = Math.max(2, Math.min(32, Math.round(2 + featherAmount * 30)));
+  const tint = 0.12 + intensityAmount * 0.46;
 
   for (let row = 0; row < rectHeight; row += 1) {
     for (let col = 0; col < rectWidth; col += 1) {
@@ -517,7 +545,7 @@ function hideLogoArea(targetCtx, cleanup) {
       const blurred = averagePatchPixel(original, canvas.width, canvas.height, rectX + col, rectY + row, blurRadius);
       const edgeDistance = Math.min(col, row, rectWidth - 1 - col, rectHeight - 1 - row);
       const rectCover = 0.2 + smoothStep(Math.min(1, edgeDistance / feather)) * 0.8;
-      const cover = maskCover * (cleanup.type === "lasso" ? 0.82 + precisionAmount * 0.18 : rectCover);
+      const cover = maskCover * opacityAmount * intensityAmount * (cleanup.type === "lasso" ? 1 : rectCover);
       const cleanedRed = blurred.red * (1 - tint) + fill.red * tint;
       const cleanedGreen = blurred.green * (1 - tint) + fill.green * tint;
       const cleanedBlue = blurred.blue * (1 - tint) + fill.blue * tint;
@@ -552,6 +580,13 @@ function createLassoMask(cleanup) {
   drawLassoPath(maskCtx, cleanup.points);
   maskCtx.fillStyle = "#000";
   maskCtx.fill();
+  const feather = Math.max(2, Math.round(2 + (state.cleanupSettings.feather / 100) * 30));
+  for (let step = feather; step >= 1; step -= 1) {
+    drawLassoPath(maskCtx, cleanup.points);
+    maskCtx.strokeStyle = `rgba(0,0,0,${(step / feather) * 0.45})`;
+    maskCtx.lineWidth = step * 2;
+    maskCtx.stroke();
+  }
   return maskCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 }
 
@@ -697,7 +732,7 @@ function drawLassoPath(targetCtx, points = []) {
 }
 
 function getLassoPointDistance() {
-  return Math.max(2, Math.round(11 - state.cleanupPrecision / 12));
+  return Math.max(2, Math.round(10 - state.cleanupSettings.feather / 16));
 }
 
 function isValidCleanup(cleanup) {
@@ -1581,7 +1616,6 @@ function handlePointerDown(event) {
     state.cleanupDraft = {
       type: "lasso",
       points: [point],
-      precision: state.cleanupPrecision,
     };
     canvas.setPointerCapture(event.pointerId);
     draw();
@@ -1776,12 +1810,11 @@ hidePhotoLogoBtn.addEventListener("click", () => {
   canvas.style.cursor = state.cleanupMode ? "crosshair" : "";
 });
 
-cleanupPrecisionControl.addEventListener("input", () => {
-  state.cleanupPrecision = Number(cleanupPrecisionControl.value);
-  cleanupHint.textContent =
-    state.cleanupPrecision > 75
-      ? "Precisão alta: melhor para contornar logos pequenos."
-      : "Precisão suave: melhor para esconder marcas em tecido ou sombra.";
+[cleanupIntensityControl, cleanupOpacityControl, cleanupFeatherControl, cleanupBlurControl].forEach((control) => {
+  control.addEventListener("input", () => {
+    syncCleanupSettingsFromControls();
+    cleanupHint.textContent = "Ajuste fino aplicado. Use Intensidade, Opacidade, Borda e Desfoque para naturalizar.";
+  });
 });
 
 autoHidePhotoLogoBtn.addEventListener("click", () => {
@@ -1791,7 +1824,7 @@ autoHidePhotoLogoBtn.addEventListener("click", () => {
   else cancelUndo("cleanup-auto");
   cleanupHint.textContent = found
     ? "Logo provável ocultado automaticamente. Use Limpar ocultações se precisar refazer."
-    : "Não encontrei um logo óbvio. Use Ocultar logo da foto e arraste manualmente.";
+    : "Não encontrei um logo óbvio. Use o laço e contorne manualmente.";
 });
 
 clearPhotoLogoBtn.addEventListener("click", () => {

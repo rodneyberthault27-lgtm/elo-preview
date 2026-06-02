@@ -445,8 +445,14 @@ input[type="color"] {
   background: rgba(244, 122, 32, 0.12);
 }
 
-.cleanup-precision {
+.cleanup-controls {
+  display: grid;
+  gap: 8px;
   margin-top: 10px;
+  border: 1px solid rgba(216, 228, 221, 0.82);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(246, 250, 247, 0.72);
 }
 
 .hint {
