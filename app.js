@@ -461,12 +461,13 @@ function processLogoImage(image) {
   if (state.removeBackground) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
     const data = imageData.data;
+    const tolerance = 24;
     for (let index = 0; index < data.length; index += 4) {
       const red = data[index];
       const green = data[index + 1];
       const blue = data[index + 2];
       const alpha = data[index + 3];
-      const nearWhite = red > 224 && green > 224 && blue > 224;
+      const nearWhite = red > 255 - tolerance && green > 255 - tolerance && blue > 255 - tolerance;
       if (alpha > 0 && nearWhite) data[index + 3] = 0;
     }
     logoCtx.putImageData(imageData, 0, 0);
