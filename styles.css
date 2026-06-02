@@ -207,22 +207,21 @@ canvas {
 }
 
 .empty-state {
-  position: absolute;
-  left: 50%;
-  bottom: 28px;
-  display: grid;
-  gap: 2px;
-  width: min(380px, calc(100% - 40px));
-  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 10px;
+  border: 1px solid rgba(17, 130, 104, 0.16);
   border-radius: 8px;
-  padding: 12px 14px;
-  color: #fff;
-  background: rgba(17, 27, 23, 0.74);
-  text-align: center;
-  backdrop-filter: blur(10px);
+  padding: 9px 12px;
+  color: var(--accent-dark);
+  background: rgba(255, 255, 255, 0.76);
+  font-size: 0.86rem;
 }
 
 .empty-state span {
+  color: var(--muted);
   font-size: 0.88rem;
 }
 
@@ -344,7 +343,7 @@ input[type="color"] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  max-height: 316px;
+  max-height: 300px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -391,6 +390,26 @@ input[type="color"] {
   font-size: 0.77rem;
   font-weight: 750;
   line-height: 1.22;
+}
+
+.load-more-button {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 8px;
+  border: 1px solid rgba(17, 130, 104, 0.2);
+  border-radius: 8px;
+  color: var(--accent-dark);
+  background: #fff;
+  font-weight: 850;
+}
+
+.load-more-button:hover {
+  border-color: rgba(244, 122, 32, 0.48);
+  color: var(--brand-orange-dark);
+}
+
+.load-more-button[hidden] {
+  display: none;
 }
 
 .file-drop {
@@ -453,6 +472,37 @@ input[type="color"] {
   border-radius: 8px;
   padding: 10px;
   background: rgba(246, 250, 247, 0.72);
+}
+
+.advanced-controls summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--accent-dark);
+  background: rgba(17, 130, 104, 0.08);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.advanced-controls summary::after {
+  content: "+";
+  color: var(--brand-orange-dark);
+  font-size: 1.2rem;
+}
+
+.advanced-controls[open] summary::after {
+  content: "-";
+}
+
+.advanced-controls .hint {
+  margin: 10px 0;
+}
+
+.advanced-controls .range-row {
+  margin-top: 8px;
 }
 
 .hint {

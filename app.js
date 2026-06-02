@@ -31,6 +31,7 @@ const techniqueControl = document.querySelector("#techniqueControl");
 const productGrid = document.querySelector("#productGrid");
 const productSearch = document.querySelector("#productSearch");
 const productCount = document.querySelector("#productCount");
+const loadMoreProductsBtn = document.querySelector("#loadMoreProductsBtn");
 const quickCats = document.querySelector(".quick-cats");
 const contrastAlert = document.querySelector("#contrastAlert");
 const qualityHint = document.querySelector("#qualityHint");
@@ -41,6 +42,7 @@ const state = {
   logo: null,
   logoOriginal: null,
   products: [],
+  visibleProductCount: 80,
   selectedProduct: null,
   activeCategory: "all",
   logoX: Number(xControl.value),
@@ -64,7 +66,7 @@ const state = {
     blur: Number(cleanupBlurControl.value),
   },
   logoQuad: null,
-  logoSelected: true,
+  logoSelected: false,
   activeHandle: null,
   handleStart: null,
   isDragging: false,
@@ -116,16 +118,21 @@ function renderProducts() {
     const matchesCategory = state.activeCategory === "all" || product.category === state.activeCategory;
     return matchesTerm && matchesCategory;
   });
+  const visibleProducts = filtered.slice(0, state.visibleProductCount);
 
-  productCount.textContent = `${filtered.length} produto${filtered.length === 1 ? "" : "s"}`;
+  productCount.textContent =
+    filtered.length > visibleProducts.length
+      ? `${visibleProducts.length} de ${filtered.length} produtos`
+      : `${filtered.length} produto${filtered.length === 1 ? "" : "s"}`;
   productGrid.innerHTML = "";
+  loadMoreProductsBtn.hidden = filtered.length <= visibleProducts.length;
 
   if (!filtered.length) {
     productGrid.innerHTML = '<p class="hint">Nenhum produto encontrado.</p>';
     return;
   }
 
-  filtered.forEach((product) => {
+  visibleProducts.forEach((product) => {
     const button = document.createElement("button");
     button.className = `product-option${state.selectedProduct?.code === product.code ? " is-active" : ""}`;
     button.type = "button";
@@ -433,7 +440,7 @@ function loadLogo(src, file) {
     state.logo = processLogoImage(image);
     state.logoX = canvas.width * 0.5;
     state.logoY = canvas.height * 0.52;
-    state.logoSelected = true;
+    state.logoSelected = false;
     resetLogoQuad();
     syncPositionControls();
     emptyState.classList.add("is-hidden");
@@ -1928,7 +1935,10 @@ clearPhotoLogoBtn.addEventListener("click", () => {
   draw();
 });
 
-productSearch.addEventListener("input", renderProducts);
+productSearch.addEventListener("input", () => {
+  state.visibleProductCount = 80;
+  renderProducts();
+});
 
 quickCats.addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
@@ -1936,6 +1946,12 @@ quickCats.addEventListener("click", (event) => {
   quickCats.querySelectorAll("[data-category]").forEach((item) => item.classList.remove("is-active"));
   button.classList.add("is-active");
   state.activeCategory = button.dataset.category;
+  state.visibleProductCount = 80;
+  renderProducts();
+});
+
+loadMoreProductsBtn.addEventListener("click", () => {
+  state.visibleProductCount += 80;
   renderProducts();
 });
 
