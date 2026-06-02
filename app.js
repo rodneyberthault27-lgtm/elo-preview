@@ -510,6 +510,7 @@ function removeLogoBackground(imageData, width, height) {
   }
 
   softenLogoBackgroundEdge(data, visited, width, height, background);
+  removeInnerNeutralResidues(data, width, height, background);
 }
 
 function estimateLogoBackgroundFromEdges(data, width, height) {
@@ -548,6 +549,7 @@ function estimateLogoBackgroundFromEdges(data, width, height) {
     red,
     green,
     blue,
+    luminance,
     tolerance,
     softTolerance: tolerance + 30,
   };
@@ -591,6 +593,48 @@ function hasBackgroundNeighbor(backgroundMask, width, pixelIndex) {
     backgroundMask[pixelIndex - width] ||
     backgroundMask[pixelIndex + width]
   );
+}
+
+function removeInnerNeutralResidues(data, width, height, background) {
+  const backgroundIsDark = background.luminance < 80;
+  const backgroundIsLight = background.luminance > 175;
+  if (!backgroundIsDark && !backgroundIsLight) return;
+
+  for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex += 1) {
+    const dataIndex = pixelIndex * 4;
+    if (data[dataIndex + 3] <= 10) continue;
+
+    const red = data[dataIndex];
+    const green = data[dataIndex + 1];
+    const blue = data[dataIndex + 2];
+    const lightness = (red + green + blue) / 3;
+    const saturation = getRgbSpread(red, green, blue);
+    const removeLightResidue = backgroundIsDark && lightness > 205 && saturation < 42;
+    const removeDarkResidue = backgroundIsLight && lightness < 38 && saturation < 30 && hasNearbyTransparency(data, width, height, pixelIndex);
+
+    if (removeLightResidue || removeDarkResidue) {
+      const alphaFade = removeLightResidue ? 0 : 0.25;
+      data[dataIndex + 3] = Math.round(data[dataIndex + 3] * alphaFade);
+    }
+  }
+}
+
+function getRgbSpread(red, green, blue) {
+  return Math.max(red, green, blue) - Math.min(red, green, blue);
+}
+
+function hasNearbyTransparency(data, width, height, pixelIndex) {
+  const x = pixelIndex % width;
+  const y = Math.floor(pixelIndex / width);
+  for (let offsetY = -2; offsetY <= 2; offsetY += 1) {
+    for (let offsetX = -2; offsetX <= 2; offsetX += 1) {
+      const nextX = x + offsetX;
+      const nextY = y + offsetY;
+      if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+      if (data[(nextY * width + nextX) * 4 + 3] <= 10) return true;
+    }
+  }
+  return false;
 }
 
 function draw() {
