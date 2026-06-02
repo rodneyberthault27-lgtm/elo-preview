@@ -609,11 +609,12 @@ function removeInnerNeutralResidues(data, width, height, background) {
     const blue = data[dataIndex + 2];
     const lightness = (red + green + blue) / 3;
     const saturation = getRgbSpread(red, green, blue);
-    const removeLightResidue = backgroundIsDark && lightness > 205 && saturation < 42;
+    const closeToCutout = hasNearbyTransparency(data, width, height, pixelIndex);
+    const removeLightResidue = backgroundIsDark && closeToCutout && lightness > 220 && saturation < 28;
     const removeDarkResidue = backgroundIsLight && lightness < 38 && saturation < 30 && hasNearbyTransparency(data, width, height, pixelIndex);
 
     if (removeLightResidue || removeDarkResidue) {
-      const alphaFade = removeLightResidue ? 0 : 0.25;
+      const alphaFade = removeLightResidue ? 0.12 : 0.25;
       data[dataIndex + 3] = Math.round(data[dataIndex + 3] * alphaFade);
     }
   }
@@ -1361,14 +1362,16 @@ function createSafeAreaMask() {
 
 function applyTechniqueStyle(targetCtx) {
   const filters = {
-    laser: "contrast(1.22) saturate(0.62) brightness(0.9)",
+    laser: "contrast(1.12) saturate(0.78) brightness(0.94)",
     silk: "contrast(1.06) saturate(1.08)",
     uv: "contrast(1.08) saturate(1.22)",
     tampo: "contrast(1.02) saturate(0.95)",
-    bordado: "contrast(1.12) saturate(0.9)",
-    "baixo-relevo": "contrast(1.18) saturate(0.45) brightness(0.86)",
+    bordado: "contrast(1.04) saturate(0.96)",
+    "baixo-relevo": "contrast(1.12) saturate(0.58) brightness(0.9)",
   };
-  targetCtx.globalCompositeOperation = state.technique === "uv" || state.technique === "silk" ? "source-over" : "multiply";
+  const shouldBlendWithProduct = !["original", "custom", "white", "black"].includes(state.logoColorMode)
+    && ["laser", "baixo-relevo"].includes(state.technique);
+  targetCtx.globalCompositeOperation = shouldBlendWithProduct ? "multiply" : "source-over";
   targetCtx.filter = filters[state.technique] || "none";
 }
 
