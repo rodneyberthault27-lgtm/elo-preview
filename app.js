@@ -1083,7 +1083,7 @@ function drawLogoClippedToProduct(targetCtx, width, height, includeSelection = f
   logoLayer.height = canvas.height;
   const logoCtx = logoLayer.getContext("2d");
 
-  if (state.logoQuad) {
+  if (false && state.logoQuad) {
     drawWarpedLogo(logoCtx, width, height);
   } else {
     drawLogo(logoCtx, width, height);
@@ -1095,7 +1095,7 @@ function drawLogoClippedToProduct(targetCtx, width, height, includeSelection = f
   logoCtx.restore();
 
   targetCtx.drawImage(logoLayer, 0, 0);
-  if (includeSelection && state.logoSelected && state.logoQuad) drawWarpHandles(targetCtx);
+  if (includeSelection && false && state.logoSelected && state.logoQuad) drawWarpHandles(targetCtx);
 }
 
 function drawWarpedLogo(targetCtx, width, height) {
@@ -1228,15 +1228,39 @@ function drawTechniqueHighlight(targetCtx, width, height) {
 }
 
 function drawSelection(targetCtx, width, height) {
-  if (state.logoQuad) return;
   targetCtx.save();
   targetCtx.translate(state.logoX, state.logoY);
   targetCtx.rotate((state.rotation * Math.PI) / 180);
-  targetCtx.strokeStyle = "rgba(201, 162, 39, 0.95)";
+  targetCtx.strokeStyle = "rgba(17, 130, 104, 0.9)";
   targetCtx.lineWidth = 2;
-  targetCtx.setLineDash([8, 6]);
+  targetCtx.setLineDash([7, 5]);
   targetCtx.strokeRect(-width / 2, -height / 2, width, height);
+  targetCtx.setLineDash([]);
+
+  const rotateY = -height / 2 - 34;
+  targetCtx.strokeStyle = "#1677c8";
+  targetCtx.beginPath();
+  targetCtx.moveTo(0, -height / 2);
+  targetCtx.lineTo(0, rotateY);
+  targetCtx.stroke();
+
+  drawHandleDot(targetCtx, 0, rotateY, "#1677c8", "circle");
+  drawHandleDot(targetCtx, width / 2, height / 2, "#0d7a63", "square");
   targetCtx.restore();
+}
+
+function drawHandleDot(targetCtx, x, y, color, shape) {
+  targetCtx.fillStyle = "#ffffff";
+  targetCtx.strokeStyle = color;
+  targetCtx.lineWidth = 3;
+  targetCtx.beginPath();
+  if (shape === "square") {
+    targetCtx.rect(x - 9, y - 9, 18, 18);
+  } else {
+    targetCtx.arc(x, y, 9, 0, Math.PI * 2);
+  }
+  targetCtx.fill();
+  targetCtx.stroke();
 }
 
 function drawWarpHandles(targetCtx) {
@@ -1727,7 +1751,7 @@ function handlePointerDown(event) {
     beginUndo("logo-transform");
     state.logoSelected = true;
     state.activeHandle = handle;
-    const center = getQuadCenter();
+    const center = { x: state.logoX, y: state.logoY };
     state.handleStart = {
       center,
       quad: cloneQuad(),
@@ -1773,21 +1797,20 @@ function handlePointerMove(event) {
     if (state.activeHandle.type === "corner") {
       state.logoQuad[state.activeHandle.key] = point;
     }
-    if (state.activeHandle.type === "resize" && state.handleStart) {
+    if ((state.activeHandle.type === "resize" || state.activeHandle.type === "resize-simple") && state.handleStart) {
       const factor = Math.max(0.05, distance(point, state.handleStart.center) / state.handleStart.distance);
-      state.logoQuad = scaleQuadFromCenter(state.handleStart.quad, state.handleStart.center, factor);
       state.scale = clamp(state.handleStart.scale * factor, 0.01, 0.9);
       scaleControl.value = Math.round(state.scale * 100);
+      resetLogoQuad();
     }
-    if (state.activeHandle.type === "rotate" && state.handleStart) {
+    if ((state.activeHandle.type === "rotate" || state.activeHandle.type === "rotate-simple") && state.handleStart) {
       const angle = Math.atan2(point.y - state.handleStart.center.y, point.x - state.handleStart.center.x);
       const delta = angle - state.handleStart.angle;
-      state.logoQuad = rotateQuadAroundCenter(state.handleStart.quad, state.handleStart.center, delta);
       state.rotation = Math.round((((state.handleStart.rotation + (delta * 180) / Math.PI) % 360) + 360) % 360);
       if (state.rotation > 180) state.rotation -= 360;
       rotationControl.value = state.rotation;
+      resetLogoQuad();
     }
-    updateLogoCenterFromQuad();
     syncPositionControls();
     draw();
     return;
@@ -1836,13 +1859,27 @@ function syncPositionControls() {
 }
 
 function getHandleAtPoint(point) {
-  if (!state.logoSelected || !state.logoQuad) return null;
-  const rotatePoint = getRotateHandlePoint();
-  const resizePoint = getResizeHandlePoint();
-  if (distance(point, rotatePoint) <= 18) return { type: "rotate" };
-  if (distance(point, resizePoint) <= 20) return { type: "resize" };
-  const corner = Object.entries(state.logoQuad).find(([, handlePoint]) => distance(point, handlePoint) <= 18)?.[0];
-  return corner ? { type: "corner", key: corner } : null;
+  if (!state.logoSelected || !state.logo) return null;
+  const simpleHandles = getSimpleLogoHandles();
+  if (distance(point, simpleHandles.rotate) <= 20) return { type: "rotate-simple" };
+  if (distance(point, simpleHandles.resize) <= 22) return { type: "resize-simple" };
+  return null;
+}
+
+function getSimpleLogoHandles() {
+  const size = getLogoSize();
+  const angle = (state.rotation * Math.PI) / 180;
+  return {
+    rotate: rotateLocalPoint(0, -size.height / 2 - 34, angle),
+    resize: rotateLocalPoint(size.width / 2, size.height / 2, angle),
+  };
+}
+
+function rotateLocalPoint(localX, localY, angle) {
+  return {
+    x: state.logoX + localX * Math.cos(angle) - localY * Math.sin(angle),
+    y: state.logoY + localX * Math.sin(angle) + localY * Math.cos(angle),
+  };
 }
 
 function isPointInsideLogo(point) {
