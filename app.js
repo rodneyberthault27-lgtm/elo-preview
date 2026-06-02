@@ -1186,7 +1186,7 @@ function openApprovalSheet() {
         <article class="sheet">
           <header>
             <div>
-              <h1>ELO BRINDES</h1>
+              <img src="./assets/elo-logo.png" alt="Elo Brindes" style="width: 170px; height: auto; display: block; margin-bottom: 8px;" />
               <h2>Ficha de Prévia Visual</h2>
             </div>
             <div>${date}<br>${reference}</div>

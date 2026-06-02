@@ -1,12 +1,14 @@
 :root {
   color-scheme: light;
-  --ink: #17201c;
-  --muted: #68746f;
-  --line: #d9e1dc;
+  --ink: #111714;
+  --muted: #66766f;
+  --line: #d8e4dd;
   --surface: #ffffff;
-  --soft: #f4f7f5;
-  --accent: #0d7a63;
-  --accent-dark: #075f4c;
+  --soft: #f6faf7;
+  --accent: #118268;
+  --accent-dark: #0a604d;
+  --brand-orange: #f47a20;
+  --brand-orange-dark: #d95e0c;
   --gold: #c9a227;
   --warn: #9c5a0d;
 }
@@ -19,7 +21,10 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  background: #e8eeeb;
+  background:
+    radial-gradient(circle at 14% 10%, rgba(244, 122, 32, 0.12), transparent 30%),
+    radial-gradient(circle at 86% 8%, rgba(17, 130, 104, 0.13), transparent 34%),
+    linear-gradient(135deg, #f7faf7 0%, #e8f1ec 100%);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -56,6 +61,11 @@ button {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 14px;
+  border: 1px solid rgba(216, 228, 221, 0.92);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 14px 36px rgba(17, 23, 20, 0.08);
 }
 
 .brand-lockup {
@@ -65,17 +75,16 @@ button {
   min-width: 0;
 }
 
-.brand-mark {
-  display: grid;
+.brand-logo {
   flex: 0 0 auto;
-  width: 46px;
-  height: 46px;
-  place-items: center;
-  border-radius: 8px;
-  color: #fff;
-  background: var(--accent);
-  font-size: 1.45rem;
-  font-weight: 850;
+  width: clamp(116px, 13vw, 168px);
+  height: auto;
+  max-height: 58px;
+  border-radius: 10px;
+  padding: 9px 12px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(216, 228, 221, 0.9);
 }
 
 .eyebrow,
@@ -87,7 +96,7 @@ p {
 
 .eyebrow {
   margin-bottom: 3px;
-  color: var(--accent);
+  color: var(--brand-orange-dark);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -123,17 +132,18 @@ h2 {
 .secondary-button {
   border: 0;
   color: #fff;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--brand-orange), var(--brand-orange-dark));
+  box-shadow: 0 10px 22px rgba(244, 122, 32, 0.22);
 }
 
 .primary-button:hover,
 .secondary-button:hover {
-  background: var(--accent-dark);
+  background: linear-gradient(135deg, #ff8b32, var(--brand-orange-dark));
 }
 
 .ghost-button {
-  border: 1px solid var(--line);
-  color: var(--ink);
+  border: 1px solid rgba(17, 130, 104, 0.22);
+  color: var(--accent-dark);
   background: #fff;
 }
 
@@ -157,9 +167,9 @@ h2 {
 }
 
 .flow-steps .is-active {
-  border-color: rgba(13, 122, 99, 0.28);
+  border-color: rgba(244, 122, 32, 0.34);
   color: var(--accent-dark);
-  background: rgba(13, 122, 99, 0.09);
+  background: linear-gradient(135deg, rgba(244, 122, 32, 0.13), rgba(17, 130, 104, 0.08));
 }
 
 .stage-wrap {
@@ -170,13 +180,13 @@ h2 {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
   background:
     linear-gradient(45deg, #dfe7e2 25%, transparent 25%),
     linear-gradient(-45deg, #dfe7e2 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, #dfe7e2 75%),
     linear-gradient(-45deg, transparent 75%, #dfe7e2 75%);
-  background-color: #f8faf8;
+  background-color: #fbfdfb;
   background-position:
     0 0,
     0 10px,
@@ -232,19 +242,22 @@ canvas {
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid rgba(216, 228, 221, 0.92);
   padding: 22px;
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: -16px 0 42px rgba(17, 23, 20, 0.06);
 }
 
 .control-group {
-  border-bottom: 1px solid var(--line);
+  border: 1px solid rgba(216, 228, 221, 0.82);
+  border-radius: 12px;
+  padding: 16px;
   padding-bottom: 18px;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .control-group:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
+  padding-bottom: 18px;
 }
 
 .section-title {
@@ -273,6 +286,14 @@ input[type="color"] {
   padding: 0 11px;
   color: var(--ink);
   background: #fff;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(244, 122, 32, 0.72);
+  box-shadow: 0 0 0 3px rgba(244, 122, 32, 0.12);
+  outline: 0;
 }
 
 textarea {
@@ -314,9 +335,9 @@ input[type="color"] {
 }
 
 .quick-cats button.is-active {
-  border-color: rgba(13, 122, 99, 0.32);
+  border-color: rgba(244, 122, 32, 0.38);
   color: var(--accent-dark);
-  background: rgba(13, 122, 99, 0.09);
+  background: rgba(244, 122, 32, 0.12);
 }
 
 .product-grid {
@@ -378,7 +399,7 @@ input[type="color"] {
   justify-content: center;
   min-height: 46px;
   margin-top: 10px;
-  border: 1px dashed #94a49d;
+  border: 1px dashed rgba(17, 130, 104, 0.48);
   border-radius: 8px;
   padding: 12px;
   color: var(--ink);
@@ -387,9 +408,9 @@ input[type="color"] {
 }
 
 .file-drop.accent {
-  border-color: rgba(13, 122, 99, 0.48);
+  border-color: rgba(244, 122, 32, 0.58);
   color: var(--accent-dark);
-  background: rgba(13, 122, 99, 0.08);
+  background: rgba(244, 122, 32, 0.1);
 }
 
 .file-drop input {
@@ -419,9 +440,9 @@ input[type="color"] {
 }
 
 .tool-button.is-active {
-  border-color: rgba(13, 122, 99, 0.42);
-  color: var(--accent-dark);
-  background: rgba(13, 122, 99, 0.1);
+  border-color: rgba(244, 122, 32, 0.48);
+  color: var(--brand-orange-dark);
+  background: rgba(244, 122, 32, 0.12);
 }
 
 .hint {
