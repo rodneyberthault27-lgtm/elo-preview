@@ -4,6 +4,7 @@ const emptyState = document.querySelector("#emptyState");
 const downloadBtn = document.querySelector("#downloadBtn");
 const approvalBtn = document.querySelector("#approvalBtn");
 const printSheetBtn = document.querySelector("#printSheetBtn");
+const downloadSheetBtn = document.querySelector("#downloadSheetBtn");
 const logoUpload = document.querySelector("#logoUpload");
 const productUpload = document.querySelector("#productUpload");
 const hidePhotoLogoBtn = document.querySelector("#hidePhotoLogoBtn");
@@ -1161,6 +1162,9 @@ function openApprovalSheet() {
         <title>Ficha de Prévia Visual</title>
         <style>
           body { margin: 0; padding: 28px; color: #17201c; font-family: Arial, sans-serif; background: #eef3f0; }
+          .toolbar { max-width: 900px; margin: 0 auto 14px; display: flex; justify-content: flex-end; gap: 10px; }
+          .toolbar button { border: 0; border-radius: 6px; padding: 11px 16px; color: #fff; background: #0d7a63; font: 700 14px Arial, sans-serif; cursor: pointer; }
+          .toolbar .secondary { color: #17201c; background: #dfe8e3; }
           .sheet { max-width: 900px; margin: 0 auto; border: 1px solid #d9e1dc; background: #fff; }
           header { display: flex; justify-content: space-between; gap: 20px; padding: 24px; border-bottom: 1px solid #d9e1dc; }
           h1 { margin: 0; font-size: 28px; }
@@ -1171,10 +1175,14 @@ function openApprovalSheet() {
           .mockup { padding: 24px; text-align: center; }
           .mockup img { max-width: 100%; border: 1px solid #d9e1dc; }
           .notice { padding: 18px 24px; color: #68746f; background: #f4f7f5; font-size: 13px; font-weight: 700; }
-          @media print { body { padding: 0; background: #fff; } .sheet { border: 0; } }
+          @media print { body { padding: 0; background: #fff; } .toolbar { display: none; } .sheet { border: 0; } }
         </style>
       </head>
       <body>
+        <nav class="toolbar">
+          <button class="secondary" type="button" onclick="window.close()">Fechar</button>
+          <button type="button" onclick="window.print()">Salvar PDF / Imprimir</button>
+        </nav>
         <article class="sheet">
           <header>
             <div>
@@ -1789,6 +1797,7 @@ canvas.addEventListener(
 downloadBtn.addEventListener("click", exportImage);
 approvalBtn.addEventListener("click", openApprovalSheet);
 printSheetBtn.addEventListener("click", openApprovalSheet);
+downloadSheetBtn.addEventListener("click", openApprovalSheet);
 
 document.addEventListener("keydown", (event) => {
   const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z";

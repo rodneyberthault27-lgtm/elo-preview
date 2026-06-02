@@ -157,11 +157,14 @@
           <label>Quantidade<input id="quantity" type="number" min="1" value="500" /></label>
           <label>Consultora<input id="consultant" type="text" placeholder="Responsável Elo" /></label>
           <label>Observações<textarea id="notes" rows="3">Logo aplicado em simulação comercial. Verificar arquivo vetorial antes da produção.</textarea></label>
-          <button id="printSheetBtn" class="secondary-button" type="button">Gerar ficha imprimível</button>
+          <div class="approval-actions">
+            <button id="printSheetBtn" class="secondary-button" type="button">Gerar ficha imprimível</button>
+            <button id="downloadSheetBtn" class="primary-button" type="button">Abrir ficha / PDF</button>
+          </div>
         </section>
       </aside>
     </main>
 
-    <script src="./app.js?v=20260601-color-wheel"></script>
+    <script src="./app.js?v=20260602-sheet-export"></script>
   </body>
 </html>
