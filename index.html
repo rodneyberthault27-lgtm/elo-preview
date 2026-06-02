@@ -59,11 +59,15 @@
             <input id="productUpload" type="file" accept="image/*" />
           </label>
           <div class="tool-buttons">
-            <button id="hidePhotoLogoBtn" class="tool-button" type="button">Ocultar logo da foto</button>
+            <button id="hidePhotoLogoBtn" class="tool-button" type="button">Laço para ocultar logo</button>
             <button id="autoHidePhotoLogoBtn" class="tool-button" type="button">Detectar logo</button>
             <button id="clearPhotoLogoBtn" class="tool-button" type="button">Limpar ocultações</button>
           </div>
-          <p id="cleanupHint" class="hint">Ative e arraste sobre o logo antigo do produto.</p>
+          <label class="range-row cleanup-precision">
+            <span>Precisão do laço</span>
+            <input id="cleanupPrecisionControl" type="range" min="1" max="100" value="72" />
+          </label>
+          <p id="cleanupHint" class="hint">Ative e contorne o logo antigo com o mouse.</p>
         </section>
 
         <section class="control-group">
@@ -166,6 +170,6 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=20260602-reset-selection"></script>
+    <script src="./app.js?v=20260602-lasso-cleanup"></script>
   </body>
 </html>

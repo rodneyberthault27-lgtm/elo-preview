@@ -11,6 +11,7 @@ const hidePhotoLogoBtn = document.querySelector("#hidePhotoLogoBtn");
 const autoHidePhotoLogoBtn = document.querySelector("#autoHidePhotoLogoBtn");
 const clearPhotoLogoBtn = document.querySelector("#clearPhotoLogoBtn");
 const cleanupHint = document.querySelector("#cleanupHint");
+const cleanupPrecisionControl = document.querySelector("#cleanupPrecisionControl");
 const removeBgToggle = document.querySelector("#removeBgToggle");
 const xControl = document.querySelector("#xControl");
 const yControl = document.querySelector("#yControl");
@@ -53,6 +54,7 @@ const state = {
   productCleanups: [],
   cleanupDraft: null,
   cleanupStart: null,
+  cleanupPrecision: Number(cleanupPrecisionControl.value),
   logoQuad: null,
   logoSelected: true,
   activeHandle: null,
@@ -282,6 +284,17 @@ function normalizeRect(rect) {
   };
 }
 
+function cloneCleanup(cleanup) {
+  if (!cleanup) return null;
+  if (cleanup.type === "lasso") {
+    return {
+      ...cleanup,
+      points: cleanup.points.map((point) => ({ ...point })),
+    };
+  }
+  return { ...cleanup };
+}
+
 function createUndoSnapshot() {
   return {
     logoX: state.logoX,
@@ -294,7 +307,8 @@ function createUndoSnapshot() {
     logoColor: state.logoColor,
     technique: state.technique,
     removeBackground: state.removeBackground,
-    productCleanups: state.productCleanups.map((rect) => ({ ...rect })),
+    cleanupPrecision: state.cleanupPrecision,
+    productCleanups: state.productCleanups.map(cloneCleanup),
     logoQuad: cloneQuad(),
     logoSelected: state.logoSelected,
   };
@@ -357,7 +371,8 @@ function restoreUndoSnapshot(snapshot) {
   state.logoColor = snapshot.logoColor;
   state.technique = snapshot.technique;
   state.removeBackground = snapshot.removeBackground;
-  state.productCleanups = snapshot.productCleanups.map((rect) => ({ ...rect }));
+  state.cleanupPrecision = snapshot.cleanupPrecision ?? Number(cleanupPrecisionControl.value);
+  state.productCleanups = snapshot.productCleanups.map(cloneCleanup);
   state.cleanupDraft = null;
   state.cleanupStart = null;
   state.logoQuad = snapshot.logoQuad ? cloneQuad(snapshot.logoQuad) : null;
@@ -383,6 +398,7 @@ function syncAllControls() {
   logoColorMode.value = state.logoColorMode;
   techniqueControl.value = state.technique;
   removeBgToggle.checked = state.removeBackground;
+  cleanupPrecisionControl.value = Math.round(state.cleanupPrecision);
 }
 
 function loadLogo(src, file) {
@@ -468,14 +484,14 @@ function drawProduct(targetCtx) {
 }
 
 function drawProductCleanups(targetCtx, includeSelection) {
-  [...state.productCleanups, state.cleanupDraft].filter(Boolean).forEach((rect) => {
-    hideLogoArea(targetCtx, rect);
-    if (includeSelection && rect === state.cleanupDraft) drawCleanupDraft(targetCtx, rect);
+  [...state.productCleanups, state.cleanupDraft].filter(Boolean).forEach((cleanup) => {
+    hideLogoArea(targetCtx, cleanup);
+    if (includeSelection && cleanup === state.cleanupDraft) drawCleanupDraft(targetCtx, cleanup);
   });
 }
 
-function hideLogoArea(targetCtx, rect) {
-  const normalized = expandRect(normalizeRect(rect), 4);
+function hideLogoArea(targetCtx, cleanup) {
+  const normalized = getCleanupBounds(cleanup, 4);
   if (normalized.width < 4 || normalized.height < 4) return;
 
   const imageData = targetCtx.getImageData(0, 0, canvas.width, canvas.height);
@@ -486,16 +502,22 @@ function hideLogoArea(targetCtx, rect) {
   const rectWidth = Math.min(canvas.width - rectX - 2, Math.ceil(normalized.width));
   const rectHeight = Math.min(canvas.height - rectY - 2, Math.ceil(normalized.height));
   const fill = estimateCleanupFill(original, canvas.width, canvas.height, rectX, rectY, rectWidth, rectHeight);
-  const blurRadius = Math.max(5, Math.min(14, Math.round(Math.min(rectWidth, rectHeight) * 0.16)));
-  const feather = Math.max(6, Math.min(18, Math.round(Math.min(rectWidth, rectHeight) * 0.18)));
+  const precision = cleanup.precision ?? state.cleanupPrecision;
+  const precisionAmount = clamp(precision / 100, 0.01, 1);
+  const mask = cleanup.type === "lasso" ? createLassoMask(cleanup) : null;
+  const blurRadius = Math.max(4, Math.min(18, Math.round((1 - precisionAmount) * 14 + Math.min(rectWidth, rectHeight) * 0.08)));
+  const feather = Math.max(5, Math.min(20, Math.round((1 - precisionAmount) * 16 + Math.min(rectWidth, rectHeight) * 0.08)));
+  const tint = cleanup.type === "lasso" ? 0.22 + (1 - precisionAmount) * 0.34 : 0.42;
 
   for (let row = 0; row < rectHeight; row += 1) {
     for (let col = 0; col < rectWidth; col += 1) {
       const index = ((rectY + row) * canvas.width + rectX + col) * 4;
+      const maskCover = mask ? mask[index + 3] / 255 : 1;
+      if (maskCover <= 0) continue;
       const blurred = averagePatchPixel(original, canvas.width, canvas.height, rectX + col, rectY + row, blurRadius);
       const edgeDistance = Math.min(col, row, rectWidth - 1 - col, rectHeight - 1 - row);
-      const cover = 0.2 + smoothStep(Math.min(1, edgeDistance / feather)) * 0.8;
-      const tint = 0.42;
+      const rectCover = 0.2 + smoothStep(Math.min(1, edgeDistance / feather)) * 0.8;
+      const cover = maskCover * (cleanup.type === "lasso" ? 0.82 + precisionAmount * 0.18 : rectCover);
       const cleanedRed = blurred.red * (1 - tint) + fill.red * tint;
       const cleanedGreen = blurred.green * (1 - tint) + fill.green * tint;
       const cleanedBlue = blurred.blue * (1 - tint) + fill.blue * tint;
@@ -507,6 +529,30 @@ function hideLogoArea(targetCtx, rect) {
   }
 
   targetCtx.putImageData(imageData, 0, 0);
+}
+
+function getCleanupBounds(cleanup, padding = 0) {
+  if (cleanup.type !== "lasso") return expandRect(normalizeRect(cleanup), padding);
+  const points = cleanup.points || [];
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  if (!xs.length || !ys.length) return { x: 0, y: 0, width: 0, height: 0 };
+  const x = Math.max(0, Math.min(...xs) - padding);
+  const y = Math.max(0, Math.min(...ys) - padding);
+  const right = Math.min(canvas.width, Math.max(...xs) + padding);
+  const bottom = Math.min(canvas.height, Math.max(...ys) + padding);
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+function createLassoMask(cleanup) {
+  const maskCanvas = document.createElement("canvas");
+  maskCanvas.width = canvas.width;
+  maskCanvas.height = canvas.height;
+  const maskCtx = maskCanvas.getContext("2d");
+  drawLassoPath(maskCtx, cleanup.points);
+  maskCtx.fillStyle = "#000";
+  maskCtx.fill();
+  return maskCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 }
 
 function expandRect(rect, padding) {
@@ -627,14 +673,48 @@ function clampColor(value) {
   return Math.max(0, Math.min(255, Math.round(value)));
 }
 
-function drawCleanupDraft(targetCtx, rect) {
-  const normalized = normalizeRect(rect);
+function drawCleanupDraft(targetCtx, cleanup) {
   targetCtx.save();
   targetCtx.strokeStyle = "rgba(13, 122, 99, 0.9)";
   targetCtx.lineWidth = 2;
   targetCtx.setLineDash([8, 6]);
-  targetCtx.strokeRect(normalized.x, normalized.y, normalized.width, normalized.height);
+  if (cleanup.type === "lasso") {
+    drawLassoPath(targetCtx, cleanup.points);
+    targetCtx.stroke();
+  } else {
+    const normalized = normalizeRect(cleanup);
+    targetCtx.strokeRect(normalized.x, normalized.y, normalized.width, normalized.height);
+  }
   targetCtx.restore();
+}
+
+function drawLassoPath(targetCtx, points = []) {
+  if (!points.length) return;
+  targetCtx.beginPath();
+  targetCtx.moveTo(points[0].x, points[0].y);
+  points.slice(1).forEach((point) => targetCtx.lineTo(point.x, point.y));
+  if (points.length > 2) targetCtx.closePath();
+}
+
+function getLassoPointDistance() {
+  return Math.max(2, Math.round(11 - state.cleanupPrecision / 12));
+}
+
+function isValidCleanup(cleanup) {
+  if (cleanup.type !== "lasso") {
+    const rect = normalizeRect(cleanup);
+    return rect.width > 12 && rect.height > 12;
+  }
+  const points = cleanup.points || [];
+  if (points.length < 8) return false;
+  return Math.abs(polygonArea(points)) > 140;
+}
+
+function polygonArea(points) {
+  return points.reduce((area, point, index) => {
+    const next = points[(index + 1) % points.length];
+    return area + point.x * next.y - next.x * point.y;
+  }, 0) / 2;
 }
 
 function autoHideExistingPhotoLogo() {
@@ -1498,7 +1578,11 @@ function handlePointerDown(event) {
   if (state.cleanupMode) {
     beginUndo("cleanup");
     state.cleanupStart = point;
-    state.cleanupDraft = { x: point.x, y: point.y, width: 0, height: 0 };
+    state.cleanupDraft = {
+      type: "lasso",
+      points: [point],
+      precision: state.cleanupPrecision,
+    };
     canvas.setPointerCapture(event.pointerId);
     draw();
     return;
@@ -1541,12 +1625,12 @@ function handlePointerDown(event) {
 function handlePointerMove(event) {
   if (state.cleanupMode && state.cleanupDraft && state.cleanupStart) {
     const point = canvasPoint(event);
-    state.cleanupDraft = {
-      x: state.cleanupStart.x,
-      y: state.cleanupStart.y,
-      width: point.x - state.cleanupStart.x,
-      height: point.y - state.cleanupStart.y,
-    };
+    const points = state.cleanupDraft.points;
+    const lastPoint = points[points.length - 1];
+    const minPointDistance = getLassoPointDistance();
+    if (distance(point, lastPoint) >= minPointDistance) {
+      points.push(point);
+    }
     draw();
     return;
   }
@@ -1587,9 +1671,9 @@ function handlePointerMove(event) {
 
 function handlePointerUp(event) {
   if (state.cleanupMode && state.cleanupDraft) {
-    const rect = normalizeRect(state.cleanupDraft);
-    if (rect.width > 12 && rect.height > 12) {
-      state.productCleanups.push(rect);
+    const cleanup = cloneCleanup(state.cleanupDraft);
+    if (isValidCleanup(cleanup)) {
+      state.productCleanups.push(cleanup);
       commitUndo("cleanup");
     } else {
       cancelUndo("cleanup");
@@ -1687,9 +1771,17 @@ hidePhotoLogoBtn.addEventListener("click", () => {
   state.cleanupMode = !state.cleanupMode;
   hidePhotoLogoBtn.classList.toggle("is-active", state.cleanupMode);
   cleanupHint.textContent = state.cleanupMode
-    ? "Modo ativo: arraste um retângulo sobre o logo antigo."
-    : "Ative e arraste sobre o logo antigo do produto.";
+    ? "Modo ativo: contorne o logo antigo e solte para aplicar."
+    : "Ative e contorne o logo antigo com o mouse.";
   canvas.style.cursor = state.cleanupMode ? "crosshair" : "";
+});
+
+cleanupPrecisionControl.addEventListener("input", () => {
+  state.cleanupPrecision = Number(cleanupPrecisionControl.value);
+  cleanupHint.textContent =
+    state.cleanupPrecision > 75
+      ? "Precisão alta: melhor para contornar logos pequenos."
+      : "Precisão suave: melhor para esconder marcas em tecido ou sombra.";
 });
 
 autoHidePhotoLogoBtn.addEventListener("click", () => {
