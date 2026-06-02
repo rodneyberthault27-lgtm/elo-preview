@@ -18,6 +18,7 @@ const scaleControl = document.querySelector("#scaleControl");
 const rotationControl = document.querySelector("#rotationControl");
 const opacityControl = document.querySelector("#opacityControl");
 const bendControl = document.querySelector("#bendControl");
+const resetSettingsBtn = document.querySelector("#resetSettingsBtn");
 const logoColorMode = document.querySelector("#logoColorMode");
 const logoColorWheel = document.querySelector("#logoColorWheel");
 const logoColorPreview = document.querySelector("#logoColorPreview");
@@ -53,6 +54,7 @@ const state = {
   cleanupDraft: null,
   cleanupStart: null,
   logoQuad: null,
+  logoSelected: true,
   activeHandle: null,
   handleStart: null,
   isDragging: false,
@@ -294,6 +296,7 @@ function createUndoSnapshot() {
     removeBackground: state.removeBackground,
     productCleanups: state.productCleanups.map((rect) => ({ ...rect })),
     logoQuad: cloneQuad(),
+    logoSelected: state.logoSelected,
   };
 }
 
@@ -358,10 +361,19 @@ function restoreUndoSnapshot(snapshot) {
   state.cleanupDraft = null;
   state.cleanupStart = null;
   state.logoQuad = snapshot.logoQuad ? cloneQuad(snapshot.logoQuad) : null;
+  state.logoSelected = snapshot.logoSelected ?? true;
   state.activeHandle = null;
   state.handleStart = null;
   state.isDragging = false;
 
+  syncAllControls();
+  syncColorSwatches();
+  drawColorWheel();
+  if (state.logoOriginal) state.logo = processLogoImage(state.logoOriginal);
+  updateContrastAlert();
+}
+
+function syncAllControls() {
   xControl.value = Math.round(state.logoX);
   yControl.value = Math.round(state.logoY);
   scaleControl.value = Math.round(state.scale * 100);
@@ -371,10 +383,6 @@ function restoreUndoSnapshot(snapshot) {
   logoColorMode.value = state.logoColorMode;
   techniqueControl.value = state.technique;
   removeBgToggle.checked = state.removeBackground;
-  syncColorSwatches();
-  drawColorWheel();
-  if (state.logoOriginal) state.logo = processLogoImage(state.logoOriginal);
-  updateContrastAlert();
 }
 
 function loadLogo(src, file) {
@@ -384,6 +392,7 @@ function loadLogo(src, file) {
     state.logo = processLogoImage(image);
     state.logoX = canvas.width * 0.5;
     state.logoY = canvas.height * 0.52;
+    state.logoSelected = true;
     resetLogoQuad();
     syncPositionControls();
     emptyState.classList.add("is-hidden");
@@ -431,7 +440,7 @@ function renderScene(targetCtx, includeSelection) {
   if (state.logo) {
     const size = getLogoSize();
     drawLogoClippedToProduct(targetCtx, size.width, size.height, includeSelection);
-    if (includeSelection) drawSelection(targetCtx, size.width, size.height);
+    if (includeSelection && state.logoSelected) drawSelection(targetCtx, size.width, size.height);
   }
 
   drawSimulationNotice(targetCtx);
@@ -871,7 +880,7 @@ function drawLogoClippedToProduct(targetCtx, width, height, includeSelection = f
   logoCtx.restore();
 
   targetCtx.drawImage(logoLayer, 0, 0);
-  if (includeSelection && state.logoQuad) drawWarpHandles(targetCtx);
+  if (includeSelection && state.logoSelected && state.logoQuad) drawWarpHandles(targetCtx);
 }
 
 function drawWarpedLogo(targetCtx, width, height) {
@@ -1090,6 +1099,25 @@ function getLogoSize() {
   const width = Math.max(12, canvas.width * state.scale);
   const height = width * (state.logo.height / state.logo.width);
   return { width, height };
+}
+
+function resetLogoSettings() {
+  beginUndo("reset-settings");
+  state.logoX = canvas.width * 0.5;
+  state.logoY = canvas.height * 0.52;
+  state.scale = 0.28;
+  state.rotation = -8;
+  state.opacity = 0.92;
+  state.bend = 0.28;
+  state.logoColorMode = "original";
+  state.logoSelected = true;
+  resetLogoQuad();
+  syncAllControls();
+  syncColorSwatches();
+  drawColorWheel();
+  commitUndo("reset-settings");
+  updateContrastAlert();
+  draw();
 }
 
 function resetLogoQuad() {
@@ -1479,6 +1507,7 @@ function handlePointerDown(event) {
   const handle = getHandleAtPoint(point);
   if (handle) {
     beginUndo("logo-transform");
+    state.logoSelected = true;
     state.activeHandle = handle;
     const center = getQuadCenter();
     state.handleStart = {
@@ -1493,7 +1522,16 @@ function handlePointerDown(event) {
     canvas.setPointerCapture(event.pointerId);
     return;
   }
+  if (!isPointInsideLogo(point)) {
+    state.logoSelected = false;
+    state.isDragging = false;
+    state.activeHandle = null;
+    state.handleStart = null;
+    draw();
+    return;
+  }
   beginUndo("logo-transform");
+  state.logoSelected = true;
   state.isDragging = true;
   state.dragOffsetX = point.x - state.logoX;
   state.dragOffsetY = point.y - state.logoY;
@@ -1580,13 +1618,32 @@ function syncPositionControls() {
 }
 
 function getHandleAtPoint(point) {
-  if (!state.logoQuad) return null;
+  if (!state.logoSelected || !state.logoQuad) return null;
   const rotatePoint = getRotateHandlePoint();
   const resizePoint = getResizeHandlePoint();
   if (distance(point, rotatePoint) <= 18) return { type: "rotate" };
   if (distance(point, resizePoint) <= 20) return { type: "resize" };
   const corner = Object.entries(state.logoQuad).find(([, handlePoint]) => distance(point, handlePoint) <= 18)?.[0];
   return corner ? { type: "corner", key: corner } : null;
+}
+
+function isPointInsideLogo(point) {
+  if (!state.logoQuad) return false;
+  const { tl, tr, br, bl } = state.logoQuad;
+  return isPointInTriangle(point, tl, tr, br) || isPointInTriangle(point, tl, br, bl);
+}
+
+function isPointInTriangle(point, a, b, c) {
+  const area = triangleSign(point, a, b);
+  const area2 = triangleSign(point, b, c);
+  const area3 = triangleSign(point, c, a);
+  const hasNegative = area < 0 || area2 < 0 || area3 < 0;
+  const hasPositive = area > 0 || area2 > 0 || area3 > 0;
+  return !(hasNegative && hasPositive);
+}
+
+function triangleSign(a, b, c) {
+  return (a.x - c.x) * (b.y - c.y) - (b.x - c.x) * (a.y - c.y);
 }
 
 function moveLogoQuad(deltaX, deltaY) {
@@ -1718,6 +1775,8 @@ bendControl.addEventListener("input", () => {
   state.bend = Number(bendControl.value) / 100;
   draw();
 });
+
+resetSettingsBtn.addEventListener("click", resetLogoSettings);
 
 logoColorMode.addEventListener("change", () => {
   beginUndo("logo-color-mode");
