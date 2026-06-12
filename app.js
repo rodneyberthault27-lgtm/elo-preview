@@ -462,7 +462,7 @@ function processLogoImage(image) {
 
   if (state.removeBackground) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
-    const shouldPreservePng = state.logoFile?.type === "image/png" && hasUsefulTransparency(imageData.data);
+    const shouldPreservePng = state.logoFile?.type === "image/png";
     if (!shouldPreservePng) {
       removeWhiteConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height);
     }
@@ -470,15 +470,6 @@ function processLogoImage(image) {
   }
 
   return logoCanvas;
-}
-
-function hasUsefulTransparency(data) {
-  let transparentPixels = 0;
-  const totalPixels = data.length / 4;
-  for (let index = 3; index < data.length; index += 4) {
-    if (data[index] < 245) transparentPixels += 1;
-  }
-  return transparentPixels > totalPixels * 0.01;
 }
 
 function removeWhiteConnectedToEdges(imageData, width, height) {
