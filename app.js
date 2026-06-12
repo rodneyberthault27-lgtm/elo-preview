@@ -41,6 +41,7 @@ const state = {
   productMask: null,
   logo: null,
   logoOriginal: null,
+  logoFile: null,
   products: [],
   visibleProductCount: 80,
   selectedProduct: null,
@@ -437,6 +438,7 @@ function loadLogo(src, file) {
   const image = new Image();
   image.onload = () => {
     state.logoOriginal = image;
+    state.logoFile = file || null;
     state.logo = processLogoImage(image);
     state.logoX = canvas.width * 0.5;
     state.logoY = canvas.height * 0.52;
@@ -460,20 +462,68 @@ function processLogoImage(image) {
 
   if (state.removeBackground) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
-    const data = imageData.data;
-    const tolerance = 24;
-    for (let index = 0; index < data.length; index += 4) {
-      const red = data[index];
-      const green = data[index + 1];
-      const blue = data[index + 2];
-      const alpha = data[index + 3];
-      const nearWhite = red > 255 - tolerance && green > 255 - tolerance && blue > 255 - tolerance;
-      if (alpha > 0 && nearWhite) data[index + 3] = 0;
+    const shouldPreservePng = state.logoFile?.type === "image/png" && hasUsefulTransparency(imageData.data);
+    if (!shouldPreservePng) {
+      removeWhiteConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height);
     }
     logoCtx.putImageData(imageData, 0, 0);
   }
 
   return logoCanvas;
+}
+
+function hasUsefulTransparency(data) {
+  let transparentPixels = 0;
+  const totalPixels = data.length / 4;
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] < 245) transparentPixels += 1;
+  }
+  return transparentPixels > totalPixels * 0.01;
+}
+
+function removeWhiteConnectedToEdges(imageData, width, height) {
+  const data = imageData.data;
+  const tolerance = 24;
+  const visited = new Uint8Array(width * height);
+  const queue = [];
+
+  const tryAdd = (x, y) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const pixelIndex = y * width + x;
+    if (visited[pixelIndex]) return;
+    const dataIndex = pixelIndex * 4;
+    if (!isNearWhitePixel(data, dataIndex, tolerance)) return;
+    visited[pixelIndex] = 1;
+    queue.push(pixelIndex);
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    tryAdd(x, 0);
+    tryAdd(x, height - 1);
+  }
+  for (let y = 0; y < height; y += 1) {
+    tryAdd(0, y);
+    tryAdd(width - 1, y);
+  }
+
+  for (let head = 0; head < queue.length; head += 1) {
+    const pixelIndex = queue[head];
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    tryAdd(x + 1, y);
+    tryAdd(x - 1, y);
+    tryAdd(x, y + 1);
+    tryAdd(x, y - 1);
+  }
+
+  for (let pixelIndex = 0; pixelIndex < visited.length; pixelIndex += 1) {
+    if (visited[pixelIndex]) data[pixelIndex * 4 + 3] = 0;
+  }
+}
+
+function isNearWhitePixel(data, index, tolerance) {
+  const alpha = data[index + 3];
+  return alpha > 0 && data[index] > 255 - tolerance && data[index + 1] > 255 - tolerance && data[index + 2] > 255 - tolerance;
 }
 
 function draw() {
