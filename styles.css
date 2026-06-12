@@ -42,9 +42,9 @@ button {
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 390px;
-  height: 100vh;
+  align-items: start;
   min-height: 100vh;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .workspace {
@@ -178,7 +178,7 @@ h2 {
   flex: 1;
   min-height: 0;
   place-items: center;
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 12px;
   background:
@@ -198,7 +198,7 @@ h2 {
 canvas {
   display: block;
   width: min(100%, 1200px);
-  max-height: calc(100vh - 175px);
+  height: auto;
   aspect-ratio: 1200 / 760;
   border-radius: 6px;
   background: #fff;
