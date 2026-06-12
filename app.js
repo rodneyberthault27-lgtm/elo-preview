@@ -462,7 +462,7 @@ function processLogoImage(image) {
 
   if (state.removeBackground) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
-    const shouldPreservePng = state.logoFile?.type === "image/png";
+    const shouldPreservePng = state.logoFile?.type === "image/png" && hasUsefulTransparency(imageData.data);
     if (!shouldPreservePng) {
       removeWhiteConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height);
     }
@@ -470,6 +470,15 @@ function processLogoImage(image) {
   }
 
   return logoCanvas;
+}
+
+function hasUsefulTransparency(data) {
+  let transparentPixels = 0;
+  const totalPixels = data.length / 4;
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] < 245) transparentPixels += 1;
+  }
+  return transparentPixels > totalPixels * 0.01;
 }
 
 function removeWhiteConnectedToEdges(imageData, width, height) {
@@ -508,13 +517,43 @@ function removeWhiteConnectedToEdges(imageData, width, height) {
   }
 
   for (let pixelIndex = 0; pixelIndex < visited.length; pixelIndex += 1) {
-    if (visited[pixelIndex]) data[pixelIndex * 4 + 3] = 0;
+    if (!visited[pixelIndex]) continue;
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    if (hasNearbyLogoContent(data, width, height, x, y, 8)) continue;
+    data[pixelIndex * 4 + 3] = 0;
   }
 }
 
 function isNearWhitePixel(data, index, tolerance) {
   const alpha = data[index + 3];
   return alpha > 0 && data[index] > 255 - tolerance && data[index + 1] > 255 - tolerance && data[index + 2] > 255 - tolerance;
+}
+
+function hasNearbyLogoContent(data, width, height, x, y, radius) {
+  for (let offsetY = -radius; offsetY <= radius; offsetY += 2) {
+    for (let offsetX = -radius; offsetX <= radius; offsetX += 2) {
+      const nextX = x + offsetX;
+      const nextY = y + offsetY;
+      if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+      const index = (nextY * width + nextX) * 4;
+      if (isLogoContentPixel(data, index)) return true;
+    }
+  }
+  return false;
+}
+
+function isLogoContentPixel(data, index) {
+  const alpha = data[index + 3];
+  if (alpha <= 10) return false;
+  const red = data[index];
+  const green = data[index + 1];
+  const blue = data[index + 2];
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const saturation = max - min;
+  const lightness = (red + green + blue) / 3;
+  return lightness < 226 || saturation > 24;
 }
 
 function draw() {
