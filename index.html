@@ -87,50 +87,6 @@
               <p id="qualityHint" class="hint">Use em logos com fundo solido. Para artes com partes da cor do fundo, deixe desligado.</p>
             </section>
 
-            <section class="inline-adjustments-card" aria-label="Ajustes finos do logo">
-              <div class="section-header section-header-simple">
-                <div class="section-index">3</div>
-                <div class="section-copy">
-                  <h2>Ajustes finos</h2>
-                  <p>Abra so quando precisar refinar tamanho, giro ou curvatura manualmente.</p>
-                </div>
-              </div>
-
-              <details class="advanced-controls inline-advanced-controls">
-                <summary>Ajustes avancados do logo</summary>
-                <p class="hint">Use apenas se precisar ajustar manualmente. No uso simples, clique e arraste o logo direto no produto.</p>
-                <label class="range-row">
-                  <span>Horizontal</span>
-                  <input id="xControl" type="range" min="0" max="1200" value="600" />
-                </label>
-                <label class="range-row">
-                  <span>Vertical</span>
-                  <input id="yControl" type="range" min="0" max="760" value="395" />
-                </label>
-                <label class="range-row">
-                  <span>Tamanho</span>
-                  <input id="scaleControl" type="range" min="1" max="90" value="28" />
-                </label>
-                <label class="range-row">
-                  <span>Giro</span>
-                  <input id="rotationControl" type="range" min="-180" max="180" value="-8" />
-                </label>
-                <label class="range-row">
-                  <span>Opacidade</span>
-                  <input id="opacityControl" type="range" min="25" max="100" value="92" />
-                </label>
-                <label class="range-row">
-                  <span>Curvatura</span>
-                  <input id="bendControl" type="range" min="0" max="70" value="0" />
-                </label>
-                <label class="range-row">
-                  <span>Fundo solido</span>
-                  <input id="logoCutoutControl" type="range" min="0" max="90" value="24" />
-                </label>
-                <button id="resetSettingsBtn" class="secondary-button reset-button" type="button">Limpar configuracoes</button>
-              </details>
-            </section>
-
             <p class="legal-note">
               Simulacao visual. Producao sujeita a analise tecnica, area real de gravacao e viabilidade do produto.
             </p>
@@ -199,6 +155,47 @@
             </label>
 
             <div id="contrastAlert" class="contrast-alert" role="status"></div>
+
+            <div class="live-subsection">
+              <div class="live-subsection-copy">
+                <strong>Ajustes finos do logo</strong>
+                <span>Abra so quando precisar refinar tamanho, giro, opacidade ou curvatura manualmente.</span>
+              </div>
+
+              <details class="advanced-controls live-advanced-controls">
+                <summary>Abrir ajustes finos</summary>
+                <p class="hint">No uso simples, clique e arraste o logo direto no produto. Aqui ficam os refinamentos mais delicados.</p>
+                <label class="range-row">
+                  <span>Horizontal</span>
+                  <input id="xControl" type="range" min="0" max="1200" value="600" />
+                </label>
+                <label class="range-row">
+                  <span>Vertical</span>
+                  <input id="yControl" type="range" min="0" max="760" value="395" />
+                </label>
+                <label class="range-row">
+                  <span>Tamanho</span>
+                  <input id="scaleControl" type="range" min="1" max="90" value="28" />
+                </label>
+                <label class="range-row">
+                  <span>Giro</span>
+                  <input id="rotationControl" type="range" min="-180" max="180" value="-8" />
+                </label>
+                <label class="range-row">
+                  <span>Opacidade</span>
+                  <input id="opacityControl" type="range" min="25" max="100" value="92" />
+                </label>
+                <label class="range-row">
+                  <span>Curvatura</span>
+                  <input id="bendControl" type="range" min="0" max="70" value="0" />
+                </label>
+                <label class="range-row">
+                  <span>Fundo solido</span>
+                  <input id="logoCutoutControl" type="range" min="0" max="90" value="24" />
+                </label>
+                <button id="resetSettingsBtn" class="secondary-button reset-button" type="button">Limpar configuracoes</button>
+              </details>
+            </div>
           </section>
         </div>
       </section>
@@ -272,6 +269,6 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=20260616-gravacao-na-amostra"></script>
+    <script src="./app.js?v=20260616-ajustes-laterais"></script>
   </body>
 </html>

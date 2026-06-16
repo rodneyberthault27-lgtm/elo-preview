@@ -409,23 +409,6 @@ canvas {
   line-height: 1.35;
 }
 
-.inline-adjustments-card {
-  margin-top: 12px;
-  border: 1px solid rgba(216, 228, 221, 0.92);
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: var(--shadow-soft);
-}
-
-.inline-adjustments-card .section-header {
-  margin-bottom: 10px;
-}
-
-.inline-advanced-controls summary {
-  background: rgba(17, 130, 104, 0.1);
-}
-
 .legal-note {
   margin: 12px 0 0;
   color: var(--muted);
@@ -584,6 +567,33 @@ canvas {
 
 .live-controls-hint {
   margin: -2px 0 0;
+}
+
+.live-subsection {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgba(216, 228, 221, 0.92);
+  padding-top: 12px;
+}
+
+.live-subsection-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.live-subsection-copy strong {
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.live-subsection-copy span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.live-advanced-controls summary {
+  background: rgba(17, 130, 104, 0.1);
 }
 
 input[type="search"],
