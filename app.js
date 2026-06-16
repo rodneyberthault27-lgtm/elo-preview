@@ -469,7 +469,7 @@ function processLogoImage(image) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
     const shouldPreservePng = state.logoFile?.type === "image/png" && hasUsefulTransparency(imageData.data);
     if (!shouldPreservePng && state.logoCutout > 0) {
-      removeWhiteConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height);
+      removeSolidBackgroundConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height);
     }
     logoCtx.putImageData(imageData, 0, 0);
   }
@@ -486,9 +486,10 @@ function hasUsefulTransparency(data) {
   return transparentPixels > totalPixels * 0.01;
 }
 
-function removeWhiteConnectedToEdges(imageData, width, height) {
+function removeSolidBackgroundConnectedToEdges(imageData, width, height) {
   const data = imageData.data;
-  const tolerance = state.logoCutout;
+  const background = estimateLogoEdgeBackground(data, width, height);
+  const tolerance = Math.max(18, state.logoCutout * 1.35);
   const visited = new Uint8Array(width * height);
   const queue = [];
   const protectionRadius = getLogoContentProtectionRadius(width, height);
@@ -498,7 +499,7 @@ function removeWhiteConnectedToEdges(imageData, width, height) {
     const pixelIndex = y * width + x;
     if (visited[pixelIndex]) return;
     const dataIndex = pixelIndex * 4;
-    if (!isNearWhitePixel(data, dataIndex, tolerance)) return;
+    if (!isBackgroundLikePixel(data, dataIndex, background, tolerance)) return;
     if (hasNearbyLogoContent(data, width, height, x, y, protectionRadius)) return;
     visited[pixelIndex] = 1;
     queue.push(pixelIndex);
@@ -533,9 +534,40 @@ function getLogoContentProtectionRadius(width, height) {
   return Math.round(clamp(Math.min(width, height) * 0.08, 18, 64));
 }
 
-function isNearWhitePixel(data, index, tolerance) {
+function estimateLogoEdgeBackground(data, width, height) {
+  const reds = [];
+  const greens = [];
+  const blues = [];
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 80));
+  const addSample = (x, y) => {
+    const index = (y * width + x) * 4;
+    if (data[index + 3] <= 10) return;
+    reds.push(data[index]);
+    greens.push(data[index + 1]);
+    blues.push(data[index + 2]);
+  };
+
+  for (let x = 0; x < width; x += step) {
+    addSample(x, 0);
+    addSample(x, height - 1);
+  }
+  for (let y = 0; y < height; y += step) {
+    addSample(0, y);
+    addSample(width - 1, y);
+  }
+
+  if (!reds.length) return { red: 255, green: 255, blue: 255 };
+  return {
+    red: median(reds),
+    green: median(greens),
+    blue: median(blues),
+  };
+}
+
+function isBackgroundLikePixel(data, index, background, tolerance) {
   const alpha = data[index + 3];
-  return alpha > 0 && data[index] > 255 - tolerance && data[index + 1] > 255 - tolerance && data[index + 2] > 255 - tolerance;
+  if (alpha <= 0) return false;
+  return colorDistance(data[index], data[index + 1], data[index + 2], background.red, background.green, background.blue) <= tolerance;
 }
 
 function hasNearbyLogoContent(data, width, height, x, y, radius) {
