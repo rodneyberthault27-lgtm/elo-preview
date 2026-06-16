@@ -22,6 +22,7 @@ const scaleControl = document.querySelector("#scaleControl");
 const rotationControl = document.querySelector("#rotationControl");
 const opacityControl = document.querySelector("#opacityControl");
 const bendControl = document.querySelector("#bendControl");
+const logoCutoutControl = document.querySelector("#logoCutoutControl");
 const resetSettingsBtn = document.querySelector("#resetSettingsBtn");
 const logoColorMode = document.querySelector("#logoColorMode");
 const logoColorWheel = document.querySelector("#logoColorWheel");
@@ -56,6 +57,7 @@ const state = {
   logoColor: "#0f7a6c",
   technique: techniqueControl.value,
   removeBackground: removeBgToggle.checked,
+  logoCutout: Number(logoCutoutControl.value),
   cleanupMode: false,
   productCleanups: [],
   cleanupDraft: null,
@@ -337,6 +339,7 @@ function createUndoSnapshot() {
     logoColor: state.logoColor,
     technique: state.technique,
     removeBackground: state.removeBackground,
+    logoCutout: state.logoCutout,
     cleanupSettings: { ...state.cleanupSettings },
     productCleanups: state.productCleanups.map(cloneCleanup),
     logoQuad: cloneQuad(),
@@ -401,6 +404,7 @@ function restoreUndoSnapshot(snapshot) {
   state.logoColor = snapshot.logoColor;
   state.technique = snapshot.technique;
   state.removeBackground = snapshot.removeBackground;
+  state.logoCutout = snapshot.logoCutout ?? Number(logoCutoutControl.value);
   state.cleanupSettings = snapshot.cleanupSettings ? { ...snapshot.cleanupSettings } : readCleanupSettings();
   state.productCleanups = snapshot.productCleanups.map(cloneCleanup);
   state.cleanupDraft = null;
@@ -428,6 +432,7 @@ function syncAllControls() {
   logoColorMode.value = state.logoColorMode;
   techniqueControl.value = state.technique;
   removeBgToggle.checked = state.removeBackground;
+  logoCutoutControl.value = Math.round(state.logoCutout);
   cleanupIntensityControl.value = Math.round(state.cleanupSettings.intensity);
   cleanupOpacityControl.value = Math.round(state.cleanupSettings.opacity);
   cleanupFeatherControl.value = Math.round(state.cleanupSettings.feather);
@@ -463,7 +468,7 @@ function processLogoImage(image) {
   if (state.removeBackground) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
     const shouldPreservePng = state.logoFile?.type === "image/png" && hasUsefulTransparency(imageData.data);
-    if (!shouldPreservePng) {
+    if (!shouldPreservePng && state.logoCutout > 0) {
       removeWhiteConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height);
     }
     logoCtx.putImageData(imageData, 0, 0);
@@ -483,7 +488,7 @@ function hasUsefulTransparency(data) {
 
 function removeWhiteConnectedToEdges(imageData, width, height) {
   const data = imageData.data;
-  const tolerance = 24;
+  const tolerance = state.logoCutout;
   const visited = new Uint8Array(width * height);
   const queue = [];
 
@@ -520,9 +525,13 @@ function removeWhiteConnectedToEdges(imageData, width, height) {
     if (!visited[pixelIndex]) continue;
     const x = pixelIndex % width;
     const y = Math.floor(pixelIndex / width);
-    if (hasNearbyLogoContent(data, width, height, x, y, 8)) continue;
+    if (hasNearbyLogoContent(data, width, height, x, y, getLogoContentProtectionRadius(width, height))) continue;
     data[pixelIndex * 4 + 3] = 0;
   }
+}
+
+function getLogoContentProtectionRadius(width, height) {
+  return Math.round(clamp(Math.min(width, height) * 0.055, 10, 42));
 }
 
 function isNearWhitePixel(data, index, tolerance) {
@@ -1423,6 +1432,8 @@ function resetLogoSettings() {
   state.opacity = 0.92;
   state.bend = 0;
   state.logoColorMode = "original";
+  state.removeBackground = false;
+  state.logoCutout = 24;
   state.logoSelected = true;
   resetLogoQuad();
   syncAllControls();
@@ -1494,29 +1505,50 @@ function openApprovalSheet() {
   const product = state.selectedProduct || {};
   const date = new Date().toLocaleDateString("pt-BR");
   const reference = `OP-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+  const client = valueOf("#clientName");
+  const company = valueOf("#companyName");
+  const quantity = valueOf("#quantity");
+  const sample = quantity ? `${quantity} unidade${quantity === "1" ? "" : "s"}` : reference;
 
   const sheet = `
     <!doctype html>
     <html lang="pt-BR">
       <head>
         <meta charset="UTF-8" />
-        <title>Ficha de Prévia Visual</title>
+        <title>Amostra Virtual Elo Brindes</title>
         <style>
-          body { margin: 0; padding: 28px; color: #17201c; font-family: Arial, sans-serif; background: #eef3f0; }
-          .toolbar { max-width: 900px; margin: 0 auto 14px; display: flex; justify-content: flex-end; gap: 10px; }
-          .toolbar button { border: 0; border-radius: 6px; padding: 11px 16px; color: #fff; background: #0d7a63; font: 700 14px Arial, sans-serif; cursor: pointer; }
+          * { box-sizing: border-box; }
+          body { margin: 0; padding: 26px; color: #1d211f; font-family: Arial, Helvetica, sans-serif; background: #eef3f0; }
+          .toolbar { max-width: 960px; margin: 0 auto 14px; display: flex; justify-content: flex-end; gap: 10px; }
+          .toolbar button { border: 0; border-radius: 6px; padding: 11px 16px; color: #fff; background: #ff5a18; font: 700 14px Arial, sans-serif; cursor: pointer; }
           .toolbar .secondary { color: #17201c; background: #dfe8e3; }
-          .sheet { max-width: 900px; margin: 0 auto; border: 1px solid #d9e1dc; background: #fff; }
-          header { display: flex; justify-content: space-between; gap: 20px; padding: 24px; border-bottom: 1px solid #d9e1dc; }
-          h1 { margin: 0; font-size: 28px; }
-          h2 { margin: 4px 0 0; color: #0d7a63; font-size: 15px; text-transform: uppercase; }
-          .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; border-bottom: 1px solid #d9e1dc; }
-          .field { padding: 12px 18px; border-top: 1px solid #edf1ee; }
-          .field strong { display: block; color: #68746f; font-size: 12px; text-transform: uppercase; }
-          .mockup { padding: 24px; text-align: center; }
-          .mockup img { max-width: 100%; border: 1px solid #d9e1dc; }
-          .notice { padding: 18px 24px; color: #68746f; background: #f4f7f5; font-size: 13px; font-weight: 700; }
-          @media print { body { padding: 0; background: #fff; } .toolbar { display: none; } .sheet { border: 0; } }
+          .sheet { max-width: 960px; min-height: 1080px; margin: 0 auto; overflow: hidden; border: 1px solid #f05a22; background: #fff; }
+          .hero { position: relative; height: 250px; overflow: hidden; color: #fff; background: #ff5a18; text-align: center; }
+          .hero::before,
+          .hero::after { content: ""; position: absolute; inset: -70px auto auto -40px; width: 310px; height: 360px; border-radius: 44px; background: rgba(255, 204, 176, 0.55); transform: rotate(30deg); }
+          .hero::after { inset: -120px -80px auto auto; width: 430px; height: 420px; transform: rotate(-38deg); background: rgba(255, 187, 151, 0.5); }
+          .hero .stripe { position: absolute; width: 120px; height: 340px; top: -85px; left: 57%; border-radius: 18px; background: rgba(255,255,255,0.34); transform: rotate(28deg); }
+          .hero .stripe.two { left: 76%; top: -65px; height: 300px; transform: rotate(38deg); }
+          .brand { position: relative; z-index: 1; padding-top: 42px; font-size: 30px; font-weight: 400; letter-spacing: -1px; }
+          .brand strong { font-weight: 800; }
+          .title { position: relative; z-index: 1; margin-top: 32px; font-size: 62px; line-height: 0.9; letter-spacing: -2px; text-transform: uppercase; }
+          .title strong { font-weight: 950; transform: scaleX(0.82); display: inline-block; transform-origin: right center; }
+          .title span { font-weight: 300; }
+          .info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 48px; padding: 22px 20px 10px; }
+          .info .wide { grid-column: span 1; }
+          .info-bottom { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; padding: 0 20px 18px; }
+          .sample-field { min-height: 48px; padding: 8px 13px; color: #fff; background: #ff5a18; font-size: 16px; line-height: 1.2; }
+          .sample-field strong { font-weight: 400; }
+          .sample-field span { font-weight: 800; }
+          .mockup { min-height: 570px; padding: 26px 34px 18px; display: grid; place-items: center; }
+          .mockup img { display: block; max-width: 100%; max-height: 540px; object-fit: contain; }
+          .meta { display: flex; justify-content: space-between; gap: 20px; padding: 15px 20px; color: #67736d; font-size: 12px; font-weight: 700; border-top: 1px solid #f0f0f0; }
+          .notice { padding: 14px 20px 20px; color: #68746f; font-size: 12px; line-height: 1.35; font-weight: 700; }
+          @media print {
+            body { padding: 0; background: #fff; }
+            .toolbar { display: none; }
+            .sheet { width: 100%; max-width: none; min-height: 100vh; border: 0; }
+          }
         </style>
       </head>
       <body>
@@ -1525,45 +1557,49 @@ function openApprovalSheet() {
           <button type="button" onclick="window.print()">Salvar PDF / Imprimir</button>
         </nav>
         <article class="sheet">
-          <header>
-            <div>
-              <img src="./assets/elo-logo.png" alt="Elo Brindes" style="width: 170px; height: auto; display: block; margin-bottom: 8px;" />
-              <h2>Ficha de Prévia Visual</h2>
-            </div>
-            <div>${date}<br>${reference}</div>
+          <header class="hero">
+            <span class="stripe"></span>
+            <span class="stripe two"></span>
+            <div class="brand"><strong>elo</strong> brindes</div>
+            <div class="title"><strong>Amostra</strong> <span>Virtual</span></div>
           </header>
-          <section class="grid">
-            ${sheetField("Cliente", valueOf("#clientName"))}
-            ${sheetField("Empresa", valueOf("#companyName"))}
-            ${sheetField("Produto", product.name || "Imagem própria")}
-            ${sheetField("Código", product.code || "Manual")}
-            ${sheetField("Quantidade", valueOf("#quantity"))}
-            ${sheetField("Técnica desejada", techniqueLabel(state.technique))}
-            ${sheetField("Cor do produto", product.color || "A definir")}
-            ${sheetField("Cor do logo", colorLabel())}
-            ${sheetField("Área sugerida", product.area || "Área indicada no mockup")}
-            ${sheetField("Consultora responsável", valueOf("#consultant"))}
+          <section class="info">
+            ${sampleField("Cliente", client || company || "A definir")}
+            ${sampleField("Amostra", sample)}
+          </section>
+          <section class="info-bottom">
+            ${sampleField("Produto", product.name || "Imagem própria")}
+            ${sampleField("Cor", product.color || colorLabel() || "A definir")}
+            ${sampleField("Cód.", product.code || "Manual")}
           </section>
           <section class="mockup">
-            <h2>Mockup do produto</h2>
             <img src="${dataUrl}" alt="Mockup Elo Preview" />
           </section>
+          <section class="meta">
+            <span>${escapeHtml(date)}</span>
+            <span>${escapeHtml(reference)}</span>
+            <span>${escapeHtml(valueOf("#consultant") || "Elo Brindes")}</span>
+          </section>
           <section class="notice">
-            Observações: ${valueOf("#notes")}<br><br>
-            Esta imagem é uma simulação visual para aprovação comercial. A aplicação final da marca passará por análise técnica da equipe Elo Brindes, considerando o arquivo original enviado, a área real de gravação, o tamanho permitido, a técnica escolhida, as limitações do produto e a viabilidade de produção.
+            Observações: ${escapeHtml(valueOf("#notes") || "Simulação visual para aprovação comercial.")}<br>
+            Produção sujeita à análise técnica, arquivo original, área real de gravação, técnica escolhida e viabilidade do produto.
           </section>
         </article>
       </body>
     </html>
   `;
 
-  const sheetWindow = window.open("", "_blank");
-  sheetWindow.document.write(sheet);
-  sheetWindow.document.close();
+  const sheetUrl = URL.createObjectURL(new Blob([sheet], { type: "text/html;charset=utf-8" }));
+  window.open(sheetUrl, "_blank");
+  window.setTimeout(() => URL.revokeObjectURL(sheetUrl), 60000);
 }
 
 function sheetField(label, value) {
   return `<div class="field"><strong>${escapeHtml(label)}</strong>${escapeHtml(value || "A definir")}</div>`;
+}
+
+function sampleField(label, value) {
+  return `<div class="sample-field"><strong>${escapeHtml(label)}:</strong> <span>${escapeHtml(value || "A definir")}</span></div>`;
 }
 
 function valueOf(selector) {
@@ -2078,6 +2114,15 @@ removeBgToggle.addEventListener("change", () => {
   commitUndo("remove-background");
   draw();
 });
+
+logoCutoutControl.addEventListener("input", () => {
+  pushControlUndo("logo-cutout");
+  state.logoCutout = Number(logoCutoutControl.value);
+  if (state.logoOriginal) state.logo = processLogoImage(state.logoOriginal);
+  draw();
+});
+
+logoCutoutControl.addEventListener("change", () => endControlUndo("logo-cutout"));
 
 xControl.addEventListener("input", () => {
   pushControlUndo("x");

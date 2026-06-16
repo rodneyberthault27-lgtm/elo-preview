@@ -92,10 +92,10 @@
             <input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
           </label>
           <label class="check-row">
-            <input id="removeBgToggle" type="checkbox" checked />
+            <input id="removeBgToggle" type="checkbox" />
             <span>Remover fundo branco das bordas</span>
           </label>
-          <p id="qualityHint" class="hint">PNG transparente é preservado. PNG/JPG opaco remove fundo branco das bordas protegendo o desenho.</p>
+          <p id="qualityHint" class="hint">Para artes com partes brancas, deixe o fundo desligado. Use apenas em logos simples com fundo branco.</p>
         </section>
 
         <section class="control-group">
@@ -125,6 +125,10 @@
             <label class="range-row">
               <span>Curvatura</span>
               <input id="bendControl" type="range" min="0" max="70" value="0" />
+            </label>
+            <label class="range-row">
+              <span>Fundo logo</span>
+              <input id="logoCutoutControl" type="range" min="0" max="90" value="24" />
             </label>
             <button id="resetSettingsBtn" class="secondary-button reset-button" type="button">Limpar configurações</button>
           </details>
@@ -188,6 +192,6 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=20260612-edge-white-protected"></script>
+    <script src="./app.js?v=20260616-sample-layout-safe-logo"></script>
   </body>
 </html>
