@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Elo Preview</title>
-    <link rel="stylesheet" href="./styles.css?v=20260612-no-preview-crop" />
+    <link rel="stylesheet" href="./styles.css?v=20260616-inline-fine-adjustments" />
   </head>
   <body>
     <main class="app-shell">
@@ -14,7 +14,7 @@
             <img class="brand-logo" src="./assets/elo-logo.png" alt="Elo Brindes" />
             <div>
               <p class="eyebrow">Elo Preview</p>
-              <h1>Simule sua marca no brinde antes da produção</h1>
+              <h1>Simule sua marca no brinde antes da producao</h1>
             </div>
           </div>
           <div class="top-actions">
@@ -23,46 +23,211 @@
           </div>
         </header>
 
-        <nav class="flow-steps" aria-label="Fluxo principal">
-          <span class="is-active">Produto</span>
-          <span>Logo</span>
-          <span>Mockup</span>
-          <span>Ficha</span>
-        </nav>
+        <section class="creation-summary" aria-label="Resumo da criacao">
+          <article class="summary-card summary-card-product">
+            <span class="summary-label">Produto base</span>
+            <strong id="currentProductName">Selecione um produto</strong>
+            <span id="currentProductMeta">Busque por codigo, nome ou categoria no catalogo.</span>
+          </article>
+          <article class="summary-card summary-card-logo">
+            <span class="summary-label">Logo do cliente</span>
+            <strong id="currentLogoName">Nenhum logo enviado</strong>
+            <span id="currentLogoMeta">Envie PNG, JPG ou SVG para comecar a aplicar.</span>
+          </article>
+          <article class="summary-card summary-card-technique">
+            <span class="summary-label">Tecnica visual</span>
+            <strong id="currentTechniqueName">Laser</strong>
+            <span id="currentTechniqueMeta">Ajuste cor e acabamento vendo a previa ao lado.</span>
+          </article>
+        </section>
 
-        <div class="stage-wrap">
-          <canvas id="mockupCanvas" width="1200" height="760" aria-label="Prévia do mockup"></canvas>
-        </div>
-        <div id="emptyState" class="empty-state">
-          <strong>Envie o logo do cliente</strong>
-          <span>Depois clique no logo para editar. Clique fora para ver a aplicação limpa.</span>
-        </div>
+        <div class="editor-layout">
+          <div class="preview-column">
+            <div class="preview-header">
+              <div>
+                <p class="preview-eyebrow">Previa comercial</p>
+                <h2 id="previewProductName">Selecione um produto para comecar</h2>
+              </div>
+              <div class="preview-badges">
+                <span id="previewProductCode" class="preview-chip">Sem codigo</span>
+                <span id="previewSupplier" class="preview-chip preview-chip-soft">Catalogo</span>
+              </div>
+            </div>
 
-        <p class="legal-note">
-          Simulação visual. Produção sujeita à análise técnica, área real de gravação e viabilidade do produto.
-        </p>
+            <div class="stage-wrap">
+              <canvas id="mockupCanvas" width="1200" height="760" aria-label="Previa do mockup"></canvas>
+            </div>
+
+            <div id="emptyState" class="empty-state">
+              <strong>Envie o logo do cliente</strong>
+              <span>Depois clique no logo para editar. Clique fora para ver a aplicacao limpa.</span>
+            </div>
+
+            <section class="inline-logo-upload" aria-label="Upload do logo">
+              <div class="inline-step-badge">Passo 2 | envie a arte</div>
+              <div class="inline-logo-upload-main">
+                <div class="inline-logo-copy">
+                  <p class="inline-logo-kicker">Logo do cliente</p>
+                  <strong>Suba o arquivo sem sair da previa</strong>
+                  <span>Envie o logo aqui e acompanhe a aplicacao imediatamente na imagem.</span>
+                </div>
+                <label class="file-drop accent inline-upload-drop">
+                  <span>Enviar PNG, JPG ou SVG</span>
+                  <input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+                </label>
+              </div>
+              <div class="inline-logo-helper">
+                <strong>Comece por aqui</strong>
+                <span>Depois de enviar, o logo ja aparece no produto para voce arrastar e ajustar. Se precisar, abra os ajustes finos logo abaixo.</span>
+              </div>
+              <label class="check-row inline-check-row">
+                <input id="removeBgToggle" type="checkbox" />
+                <span>Remover fundo solido das bordas</span>
+              </label>
+              <p id="qualityHint" class="hint">Use em logos com fundo solido. Para artes com partes da cor do fundo, deixe desligado.</p>
+            </section>
+
+            <section class="inline-adjustments-card" aria-label="Ajustes finos do logo">
+              <div class="section-header section-header-simple">
+                <div class="section-index">3</div>
+                <div class="section-copy">
+                  <h2>Ajustes finos</h2>
+                  <p>Abra so quando precisar refinar tamanho, giro ou curvatura manualmente.</p>
+                </div>
+              </div>
+
+              <details class="advanced-controls inline-advanced-controls">
+                <summary>Ajustes avancados do logo</summary>
+                <p class="hint">Use apenas se precisar ajustar manualmente. No uso simples, clique e arraste o logo direto no produto.</p>
+                <label class="range-row">
+                  <span>Horizontal</span>
+                  <input id="xControl" type="range" min="0" max="1200" value="600" />
+                </label>
+                <label class="range-row">
+                  <span>Vertical</span>
+                  <input id="yControl" type="range" min="0" max="760" value="395" />
+                </label>
+                <label class="range-row">
+                  <span>Tamanho</span>
+                  <input id="scaleControl" type="range" min="1" max="90" value="28" />
+                </label>
+                <label class="range-row">
+                  <span>Giro</span>
+                  <input id="rotationControl" type="range" min="-180" max="180" value="-8" />
+                </label>
+                <label class="range-row">
+                  <span>Opacidade</span>
+                  <input id="opacityControl" type="range" min="25" max="100" value="92" />
+                </label>
+                <label class="range-row">
+                  <span>Curvatura</span>
+                  <input id="bendControl" type="range" min="0" max="70" value="0" />
+                </label>
+                <label class="range-row">
+                  <span>Fundo solido</span>
+                  <input id="logoCutoutControl" type="range" min="0" max="90" value="24" />
+                </label>
+                <button id="resetSettingsBtn" class="secondary-button reset-button" type="button">Limpar configuracoes</button>
+              </details>
+            </section>
+
+            <p class="legal-note">
+              Simulacao visual. Producao sujeita a analise tecnica, area real de gravacao e viabilidade do produto.
+            </p>
+          </div>
+
+          <section class="control-group live-controls">
+            <div class="live-controls-head">
+              <div>
+                <p class="live-controls-kicker">Ajuste ao vivo</p>
+                <h2>Cor e tecnica</h2>
+              </div>
+              <span class="live-badge">Tempo real</span>
+            </div>
+
+            <div class="live-product-card">
+              <div class="live-product-thumb-wrap">
+                <img id="liveProductThumb" class="live-product-thumb" src="./assets/elo-logo.png" alt="Produto selecionado" />
+              </div>
+              <div class="live-product-copy">
+                <strong id="liveProductTitle">Produto selecionado</strong>
+                <span id="liveProductDetails">Cor, codigo e fornecedor aparecem aqui.</span>
+              </div>
+            </div>
+
+            <p class="hint live-controls-hint">Ajuste a cor vendo a aplicacao ao lado em tempo real.</p>
+
+            <label class="range-row">
+              <span>Cor logo</span>
+              <select id="logoColorMode">
+                <option value="original">Original</option>
+                <option value="#111111">Preto</option>
+                <option value="#ffffff">Branco</option>
+                <option value="#c9a227">Dourado</option>
+                <option value="#a8b0b8">Prata</option>
+                <option value="custom">Personalizada</option>
+              </select>
+            </label>
+
+            <div class="color-panel">
+              <div class="color-wheel-wrap">
+                <canvas id="logoColorWheel" width="220" height="220" aria-label="Circulo cromatico"></canvas>
+                <span id="logoColorPreview" class="color-preview" title="Cor selecionada"></span>
+              </div>
+              <div class="color-swatches" aria-label="Cores rapidas">
+                <button type="button" data-color="#111111" style="--swatch:#111111" title="Preto"></button>
+                <button type="button" data-color="#ffffff" style="--swatch:#ffffff" title="Branco"></button>
+                <button type="button" data-color="#c9a227" style="--swatch:#c9a227" title="Dourado"></button>
+                <button type="button" data-color="#a8b0b8" style="--swatch:#a8b0b8" title="Prata"></button>
+                <button type="button" data-color="#0d7a63" style="--swatch:#0d7a63" title="Verde Elo"></button>
+                <button type="button" data-color="#e85d1f" style="--swatch:#e85d1f" title="Laranja"></button>
+                <button type="button" data-color="#1677c8" style="--swatch:#1677c8" title="Azul"></button>
+                <button type="button" data-color="#8b1a1a" style="--swatch:#8b1a1a" title="Vermelho"></button>
+              </div>
+            </div>
+
+            <label class="range-row">
+              <span>Tecnica</span>
+              <select id="techniqueControl">
+                <option value="laser">Laser</option>
+                <option value="silk">Serigrafia</option>
+                <option value="uv">UV digital</option>
+                <option value="tampo">Tampografia</option>
+                <option value="bordado">Bordado</option>
+                <option value="baixo-relevo">Baixo-relevo</option>
+              </select>
+            </label>
+
+            <div id="contrastAlert" class="contrast-alert" role="status"></div>
+          </section>
+        </div>
       </section>
 
       <aside class="panel" aria-label="Controles do Elo Preview">
-        <section class="control-group">
-          <div class="section-title">
-            <h2>Produto</h2>
+        <section class="control-group product-library">
+          <div class="section-header">
+            <div class="section-index">1</div>
+            <div class="section-copy">
+              <h2>Escolha o produto base</h2>
+              <p>Use o catalogo como ponto de partida ou envie uma imagem propria.</p>
+            </div>
             <span id="productCount">Carregando</span>
           </div>
-          <input id="productSearch" type="search" placeholder="Buscar código, nome ou categoria" aria-label="Buscar produto" />
-          <div class="quick-cats" aria-label="Categorias rápidas">
+
+          <input id="productSearch" type="search" placeholder="Buscar codigo, nome ou categoria" aria-label="Buscar produto" />
+          <div class="quick-cats" aria-label="Categorias rapidas">
             <button class="is-active" type="button" data-category="all">Todos</button>
           </div>
           <div class="product-grid" id="productGrid" aria-live="polite"></div>
           <button id="loadMoreProductsBtn" class="load-more-button" type="button">Ver mais produtos</button>
           <label class="file-drop">
-            <span>Usar imagem própria</span>
+            <span>Usar imagem propria</span>
             <input id="productUpload" type="file" accept="image/*" />
           </label>
           <div class="tool-buttons">
-            <button id="hidePhotoLogoBtn" class="tool-button" type="button">Laço para ocultar logo</button>
+            <button id="hidePhotoLogoBtn" class="tool-button" type="button">Laco para ocultar logo</button>
             <button id="autoHidePhotoLogoBtn" class="tool-button" type="button">Detectar logo</button>
-            <button id="clearPhotoLogoBtn" class="tool-button" type="button">Limpar ocultações</button>
+            <button id="clearPhotoLogoBtn" class="tool-button" type="button">Limpar ocultacoes</button>
           </div>
           <div class="cleanup-controls" aria-label="Controles para ocultar logo">
             <label class="range-row">
@@ -85,113 +250,28 @@
           <p id="cleanupHint" class="hint">Ative e contorne o logo antigo com o mouse.</p>
         </section>
 
-        <section class="control-group">
-          <h2>Logo do cliente</h2>
-          <label class="file-drop accent">
-            <span>Enviar PNG, JPG ou SVG</span>
-            <input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
-          </label>
-          <label class="check-row">
-            <input id="removeBgToggle" type="checkbox" />
-            <span>Remover fundo sólido das bordas</span>
-          </label>
-          <p id="qualityHint" class="hint">Use em logos com fundo sólido. Para artes com partes da cor do fundo, deixe desligado.</p>
-        </section>
-
-        <section class="control-group">
-          <details class="advanced-controls">
-            <summary>Ajustes avançados do logo</summary>
-            <p class="hint">Use apenas se precisar ajustar manualmente. No uso simples, clique e arraste o logo direto no produto.</p>
-            <label class="range-row">
-              <span>Horizontal</span>
-              <input id="xControl" type="range" min="0" max="1200" value="600" />
-            </label>
-            <label class="range-row">
-              <span>Vertical</span>
-              <input id="yControl" type="range" min="0" max="760" value="395" />
-            </label>
-            <label class="range-row">
-              <span>Tamanho</span>
-              <input id="scaleControl" type="range" min="1" max="90" value="28" />
-            </label>
-            <label class="range-row">
-              <span>Giro</span>
-              <input id="rotationControl" type="range" min="-180" max="180" value="-8" />
-            </label>
-            <label class="range-row">
-              <span>Opacidade</span>
-              <input id="opacityControl" type="range" min="25" max="100" value="92" />
-            </label>
-            <label class="range-row">
-              <span>Curvatura</span>
-              <input id="bendControl" type="range" min="0" max="70" value="0" />
-            </label>
-            <label class="range-row">
-              <span>Fundo sólido</span>
-              <input id="logoCutoutControl" type="range" min="0" max="90" value="24" />
-            </label>
-            <button id="resetSettingsBtn" class="secondary-button reset-button" type="button">Limpar configurações</button>
-          </details>
-        </section>
-
-        <section class="control-group">
-          <h2>Cor e técnica</h2>
-          <label class="range-row">
-            <span>Cor logo</span>
-            <select id="logoColorMode">
-              <option value="original">Original</option>
-              <option value="#111111">Preto</option>
-              <option value="#ffffff">Branco</option>
-              <option value="#c9a227">Dourado</option>
-              <option value="#a8b0b8">Prata</option>
-              <option value="custom">Personalizada</option>
-            </select>
-          </label>
-          <div class="color-panel">
-            <div class="color-wheel-wrap">
-              <canvas id="logoColorWheel" width="220" height="220" aria-label="Círculo cromático"></canvas>
-              <span id="logoColorPreview" class="color-preview" title="Cor selecionada"></span>
-            </div>
-            <div class="color-swatches" aria-label="Cores rápidas">
-              <button type="button" data-color="#111111" style="--swatch:#111111" title="Preto"></button>
-              <button type="button" data-color="#ffffff" style="--swatch:#ffffff" title="Branco"></button>
-              <button type="button" data-color="#c9a227" style="--swatch:#c9a227" title="Dourado"></button>
-              <button type="button" data-color="#a8b0b8" style="--swatch:#a8b0b8" title="Prata"></button>
-              <button type="button" data-color="#0d7a63" style="--swatch:#0d7a63" title="Verde Elo"></button>
-              <button type="button" data-color="#e85d1f" style="--swatch:#e85d1f" title="Laranja"></button>
-              <button type="button" data-color="#1677c8" style="--swatch:#1677c8" title="Azul"></button>
-              <button type="button" data-color="#8b1a1a" style="--swatch:#8b1a1a" title="Vermelho"></button>
+        <section class="control-group approval-panel">
+          <div class="section-header section-header-simple">
+            <div class="section-index">4</div>
+            <div class="section-copy">
+              <h2>Ficha de aprovacao</h2>
+              <p>Preencha o minimo necessario para abrir a previa comercial imprimivel.</p>
             </div>
           </div>
-          <label class="range-row">
-            <span>Técnica</span>
-            <select id="techniqueControl">
-              <option value="laser">Laser</option>
-              <option value="silk">Serigrafia</option>
-              <option value="uv">UV digital</option>
-              <option value="tampo">Tampografia</option>
-              <option value="bordado">Bordado</option>
-              <option value="baixo-relevo">Baixo-relevo</option>
-            </select>
-          </label>
-          <div id="contrastAlert" class="contrast-alert" role="status"></div>
-        </section>
 
-        <section class="control-group approval-panel">
-          <h2>Ficha de aprovação</h2>
           <label>Cliente<input id="clientName" type="text" placeholder="Nome do cliente" /></label>
           <label>Empresa<input id="companyName" type="text" placeholder="Empresa" /></label>
           <label>Quantidade<input id="quantity" type="number" min="1" value="500" /></label>
-          <label>Consultora<input id="consultant" type="text" placeholder="Responsável Elo" /></label>
-          <label>Observações<textarea id="notes" rows="3">Logo aplicado em simulação comercial. Verificar arquivo vetorial antes da produção.</textarea></label>
+          <label>Consultora<input id="consultant" type="text" placeholder="Responsavel Elo" /></label>
+          <label>Observacoes<textarea id="notes" rows="3">Logo aplicado em simulacao comercial. Verificar arquivo vetorial antes da producao.</textarea></label>
           <div class="approval-actions">
-            <button id="printSheetBtn" class="secondary-button" type="button">Gerar ficha imprimível</button>
+            <button id="printSheetBtn" class="secondary-button" type="button">Gerar ficha imprimivel</button>
             <button id="downloadSheetBtn" class="primary-button" type="button">Abrir ficha / PDF</button>
           </div>
         </section>
       </aside>
     </main>
 
-    <script src="./app.js?v=20260616-solid-edge-bg"></script>
+    <script src="./app.js?v=20260616-gravacao-na-amostra"></script>
   </body>
 </html>

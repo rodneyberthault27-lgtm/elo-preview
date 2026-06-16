@@ -36,12 +36,27 @@ const loadMoreProductsBtn = document.querySelector("#loadMoreProductsBtn");
 const quickCats = document.querySelector(".quick-cats");
 const contrastAlert = document.querySelector("#contrastAlert");
 const qualityHint = document.querySelector("#qualityHint");
+const currentProductName = document.querySelector("#currentProductName");
+const currentProductMeta = document.querySelector("#currentProductMeta");
+const currentLogoName = document.querySelector("#currentLogoName");
+const currentLogoMeta = document.querySelector("#currentLogoMeta");
+const currentTechniqueName = document.querySelector("#currentTechniqueName");
+const currentTechniqueMeta = document.querySelector("#currentTechniqueMeta");
+const previewProductName = document.querySelector("#previewProductName");
+const previewProductCode = document.querySelector("#previewProductCode");
+const previewSupplier = document.querySelector("#previewSupplier");
+const liveProductThumb = document.querySelector("#liveProductThumb");
+const liveProductTitle = document.querySelector("#liveProductTitle");
+const liveProductDetails = document.querySelector("#liveProductDetails");
 
 const state = {
   product: new Image(),
   productMask: null,
+  productCanSampleMask: true,
+  productLoadNonce: 0,
   logo: null,
   logoOriginal: null,
+  logoHasTransparency: false,
   logoFile: null,
   products: [],
   visibleProductCount: 80,
@@ -83,12 +98,13 @@ const state = {
 state.product.crossOrigin = "anonymous";
 loadProducts();
 drawColorWheel();
+updateExperienceSummary();
 
 async function loadProducts() {
   try {
     const response = await fetch("./products.json");
     if (!response.ok) throw new Error("Nao foi possivel carregar products.json");
-    state.products = await response.json();
+    state.products = normalizeCatalogPayload(await response.json());
     renderCategoryButtons();
     renderProducts();
     if (state.products[0]) selectProduct(state.products[0]);
@@ -116,7 +132,19 @@ function renderCategoryButtons() {
 function renderProducts() {
   const term = normalizeText(productSearch.value);
   const filtered = state.products.filter((product) => {
-    const haystack = normalizeText(`${product.code} ${product.name} ${product.category} ${product.techniques?.join(" ")}`);
+    const haystack = normalizeText(
+      [
+        product.code,
+        product.name,
+        product.category,
+        product.color,
+        product.sourceSupplier,
+        product.supplierName,
+        product.supplierCode,
+        ...(product.techniques || []),
+        ...(product.searchTerms || []),
+      ].join(" "),
+    );
     const matchesTerm = !term || haystack.includes(term);
     const matchesCategory = state.activeCategory === "all" || product.category === state.activeCategory;
     return matchesTerm && matchesCategory;
@@ -137,9 +165,9 @@ function renderProducts() {
 
   visibleProducts.forEach((product) => {
     const button = document.createElement("button");
-    button.className = `product-option${state.selectedProduct?.code === product.code ? " is-active" : ""}`;
+    button.className = `product-option${state.selectedProduct?.id === product.id ? " is-active" : ""}`;
     button.type = "button";
-    button.dataset.code = product.code;
+    button.dataset.productId = product.id;
     button.innerHTML = `
       <img src="${product.src}" alt="${product.name}" loading="lazy" />
       <span>${product.code}<br>${product.name}</span>
@@ -160,15 +188,36 @@ function selectProduct(product) {
   state.technique = techniqueControl.value;
   renderProducts();
   updateContrastAlert();
+  updateExperienceSummary();
 }
 
 function loadProductImage(src, removePreviewBg = false) {
+  const loadNonce = ++state.productLoadNonce;
+  state.product = new Image();
+  state.productMask = null;
+  state.productCanSampleMask = true;
+  draw();
+  loadProductImageAttempt(src, removePreviewBg, loadNonce, !isLocalCanvasSafeSource(src));
+}
+
+function loadProductImageAttempt(src, removePreviewBg, loadNonce, useAnonymous) {
   const image = new Image();
-  image.crossOrigin = src.startsWith("data:") || src.startsWith("blob:") ? "" : "anonymous";
+  if (useAnonymous) image.crossOrigin = "anonymous";
   image.onload = () => {
+    if (loadNonce !== state.productLoadNonce) return;
     state.product = image;
+    state.productCanSampleMask = useAnonymous || isLocalCanvasSafeSource(src);
     state.productMask = removePreviewBg ? createProductMaskSource(image) : image;
+    if (state.logo) resetLogoQuad();
     draw();
+  };
+  image.onerror = () => {
+    if (loadNonce !== state.productLoadNonce) return;
+    if (useAnonymous) {
+      loadProductImageAttempt(src, removePreviewBg, loadNonce, false);
+      return;
+    }
+    console.warn("Nao foi possivel carregar a imagem do produto:", src);
   };
   image.src = src;
 }
@@ -178,23 +227,24 @@ function createProductMaskSource(image) {
   productCanvas.width = image.width;
   productCanvas.height = image.height;
   const productCtx = productCanvas.getContext("2d");
-  productCtx.drawImage(image, 0, 0);
+  try {
+    productCtx.drawImage(image, 0, 0);
 
-  const imageData = productCtx.getImageData(0, 0, productCanvas.width, productCanvas.height);
-  const data = imageData.data;
-  const background = estimateBackgroundColor(data);
-
-  for (let index = 0; index < data.length; index += 4) {
-    const red = data[index];
-    const green = data[index + 1];
-    const blue = data[index + 2];
-    const distance = colorDistance(red, green, blue, background.red, background.green, background.blue);
-    const veryCloseToBackground = distance < 16;
-    const brightFlatBackground = red > 246 && green > 246 && blue > 246 && distance < 26;
-    if (veryCloseToBackground || brightFlatBackground) data[index + 3] = 0;
+    const imageData = productCtx.getImageData(0, 0, productCanvas.width, productCanvas.height);
+    const data = imageData.data;
+    const background = estimateBackgroundColor(data);
+    removeEdgeBackgroundFromMask(imageData, productCanvas.width, productCanvas.height, background);
+    productCtx.putImageData(imageData, 0, 0);
+    return productCanvas;
+  } catch (error) {
+    state.productCanSampleMask = false;
+    console.warn("Mascara do produto indisponivel; usando area segura.", error);
+    return image;
   }
-  productCtx.putImageData(imageData, 0, 0);
-  return productCanvas;
+}
+
+function isLocalCanvasSafeSource(src) {
+  return src.startsWith("data:") || src.startsWith("blob:") || !/^https?:\/\//i.test(src);
 }
 
 function estimateBackgroundColor(data) {
@@ -453,9 +503,69 @@ function loadLogo(src, file) {
     emptyState.classList.add("is-hidden");
     qualityHint.textContent = getQualityMessage(image, file);
     updateContrastAlert();
+    updateExperienceSummary();
     draw();
   };
   image.src = src;
+}
+
+function updateExperienceSummary() {
+  const product = state.selectedProduct;
+  const techniqueLabel = techniqueLabelForValue(state.technique);
+
+  if (product) {
+    if (currentProductName) currentProductName.textContent = product.name || "Produto selecionado";
+    if (currentProductMeta) {
+      currentProductMeta.textContent = [product.code, product.color || "Cor a definir", product.supplierName || "Catalogo"]
+        .filter(Boolean)
+        .join(" | ");
+    }
+    if (previewProductName) previewProductName.textContent = product.name || "Produto selecionado";
+    if (previewProductCode) previewProductCode.textContent = product.code || "Sem codigo";
+    if (previewSupplier) previewSupplier.textContent = product.supplierName || product.sourceSupplier || "Catalogo";
+    if (liveProductThumb) liveProductThumb.src = product.src || "./assets/elo-logo.png";
+    if (liveProductTitle) liveProductTitle.textContent = product.name || "Produto selecionado";
+    if (liveProductDetails) {
+      liveProductDetails.textContent = [product.code, product.color || "Cor a definir", product.supplierName || "Catalogo"]
+        .filter(Boolean)
+        .join(" | ");
+    }
+  } else {
+    if (currentProductName) currentProductName.textContent = "Imagem propria do produto";
+    if (currentProductMeta) currentProductMeta.textContent = "Use uma foto manual e aplique o logo sobre ela.";
+    if (previewProductName) previewProductName.textContent = "Imagem propria do produto";
+    if (previewProductCode) previewProductCode.textContent = "Manual";
+    if (previewSupplier) previewSupplier.textContent = "Upload proprio";
+    if (liveProductThumb) liveProductThumb.src = "./assets/elo-logo.png";
+    if (liveProductTitle) liveProductTitle.textContent = "Imagem propria do produto";
+    if (liveProductDetails) liveProductDetails.textContent = "Ajuste livre sobre a foto enviada.";
+  }
+
+  if (currentLogoName) currentLogoName.textContent = state.logoFile?.name || (state.logo ? "Logo carregado" : "Nenhum logo enviado");
+  if (currentLogoMeta) {
+    currentLogoMeta.textContent = state.logo
+      ? "Clique no logo para mover, girar e ajustar a aplicacao."
+      : "Envie PNG, JPG ou SVG para comecar a aplicar.";
+  }
+
+  if (currentTechniqueName) currentTechniqueName.textContent = techniqueLabel;
+  if (currentTechniqueMeta) {
+    currentTechniqueMeta.textContent = state.logo
+      ? "A combinacao de cor e tecnica atualiza a previa em tempo real."
+      : "Escolha a tecnica para orientar a simulacao comercial.";
+  }
+}
+
+function techniqueLabelForValue(value) {
+  const labels = {
+    laser: "Laser",
+    silk: "Serigrafia",
+    uv: "UV digital",
+    tampo: "Tampografia",
+    bordado: "Bordado",
+    "baixo-relevo": "Baixo-relevo",
+  };
+  return labels[value] || "Laser";
 }
 
 function processLogoImage(image) {
@@ -468,13 +578,36 @@ function processLogoImage(image) {
   if (state.removeBackground) {
     const imageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
     const shouldPreservePng = state.logoFile?.type === "image/png" && hasUsefulTransparency(imageData.data);
+    const removalProfile = analyzeBackgroundRemoval(imageData, logoCanvas.width, logoCanvas.height);
     if (!shouldPreservePng && state.logoCutout > 0) {
-      removeSolidBackgroundConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height);
+      const backgroundCleanup = removeSolidBackgroundConnectedToEdges(imageData, logoCanvas.width, logoCanvas.height, removalProfile);
+      trimResidualBackgroundHalo(
+        imageData,
+        logoCanvas.width,
+        logoCanvas.height,
+        backgroundCleanup.background,
+        backgroundCleanup.tolerance,
+        removalProfile,
+      );
     }
     logoCtx.putImageData(imageData, 0, 0);
   }
 
-  return logoCanvas;
+  let processedCanvas = logoCanvas;
+  try {
+    const finalImageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
+    state.logoHasTransparency = hasUsefulTransparency(finalImageData.data);
+    if (state.removeBackground || state.logoHasTransparency) {
+      processedCanvas = cropCanvasToVisibleBounds(logoCanvas);
+      const croppedCtx = processedCanvas.getContext("2d");
+      const croppedData = croppedCtx.getImageData(0, 0, processedCanvas.width, processedCanvas.height);
+      state.logoHasTransparency = hasUsefulTransparency(croppedData.data);
+    }
+  } catch {
+    state.logoHasTransparency = false;
+  }
+
+  return processedCanvas;
 }
 
 function hasUsefulTransparency(data) {
@@ -486,13 +619,13 @@ function hasUsefulTransparency(data) {
   return transparentPixels > totalPixels * 0.01;
 }
 
-function removeSolidBackgroundConnectedToEdges(imageData, width, height) {
+function removeSolidBackgroundConnectedToEdges(imageData, width, height, profile = {}) {
   const data = imageData.data;
   const background = estimateLogoEdgeBackground(data, width, height);
-  const tolerance = Math.max(18, state.logoCutout * 1.35);
+  const tolerance = Math.max(18, state.logoCutout * (profile.aggressive ? 1.55 : 1.35));
   const visited = new Uint8Array(width * height);
   const queue = [];
-  const protectionRadius = getLogoContentProtectionRadius(width, height);
+  const protectionRadius = profile.aggressive ? 0 : getLogoContentProtectionRadius(width, height);
 
   const tryAdd = (x, y) => {
     if (x < 0 || y < 0 || x >= width || y >= height) return;
@@ -500,7 +633,290 @@ function removeSolidBackgroundConnectedToEdges(imageData, width, height) {
     if (visited[pixelIndex]) return;
     const dataIndex = pixelIndex * 4;
     if (!isBackgroundLikePixel(data, dataIndex, background, tolerance)) return;
-    if (hasNearbyLogoContent(data, width, height, x, y, protectionRadius)) return;
+    if (protectionRadius > 0 && hasNearbyLogoContent(data, width, height, x, y, protectionRadius)) return;
+    visited[pixelIndex] = 1;
+    queue.push(pixelIndex);
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    tryAdd(x, 0);
+    tryAdd(x, height - 1);
+  }
+  for (let y = 0; y < height; y += 1) {
+    tryAdd(0, y);
+    tryAdd(width - 1, y);
+  }
+
+  for (let head = 0; head < queue.length; head += 1) {
+    const pixelIndex = queue[head];
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    tryAdd(x + 1, y);
+    tryAdd(x - 1, y);
+    tryAdd(x, y + 1);
+    tryAdd(x, y - 1);
+  }
+
+  let cleared = 0;
+  for (let pixelIndex = 0; pixelIndex < visited.length; pixelIndex += 1) {
+    if (!visited[pixelIndex]) continue;
+    data[pixelIndex * 4 + 3] = 0;
+    cleared += 1;
+  }
+
+  return { background, tolerance, cleared };
+}
+
+function trimResidualBackgroundHalo(imageData, width, height, background, baseTolerance, profile = {}) {
+  const data = imageData.data;
+  const haloTolerance = baseTolerance + (profile.aggressive ? 28 : 18);
+  const passes = Math.round(clamp(state.logoCutout / 28, 1, profile.aggressive ? 4 : 3));
+
+  for (let pass = 0; pass < passes; pass += 1) {
+    const snapshot = new Uint8ClampedArray(data);
+    let changed = 0;
+
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const pixelIndex = y * width + x;
+        const index = pixelIndex * 4;
+        const alpha = snapshot[index + 3];
+        if (alpha <= 0) continue;
+
+        const distance = colorDistance(
+          snapshot[index],
+          snapshot[index + 1],
+          snapshot[index + 2],
+          background.red,
+          background.green,
+          background.blue,
+        );
+        if (distance > haloTolerance) continue;
+
+        const transparentNeighbors = countTransparentNeighbors(snapshot, width, height, x, y);
+        if (!transparentNeighbors) continue;
+
+        const strongBackgroundMatch = distance <= baseTolerance * 0.72;
+        const aggressiveTrim = strongBackgroundMatch || transparentNeighbors >= (profile.aggressive ? 4 : 5);
+        data[index + 3] = aggressiveTrim ? 0 : Math.min(data[index + 3], profile.aggressive ? 42 : 76);
+        changed += 1;
+      }
+    }
+
+    if (!changed) break;
+  }
+}
+
+function countTransparentNeighbors(data, width, height, x, y) {
+  let transparentCount = 0;
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      if (offsetX === 0 && offsetY === 0) continue;
+      const nextX = x + offsetX;
+      const nextY = y + offsetY;
+      if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+      const index = (nextY * width + nextX) * 4;
+      if (data[index + 3] <= 18) transparentCount += 1;
+    }
+  }
+  return transparentCount;
+}
+
+function analyzeBackgroundRemoval(imageData, width, height) {
+  const data = imageData.data;
+  const buckets = new Set();
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 42));
+
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const index = (y * width + x) * 4;
+      if (data[index + 3] < 200) continue;
+      const bucket =
+        `${Math.round(data[index] / 24)}-${Math.round(data[index + 1] / 24)}-${Math.round(data[index + 2] / 24)}`;
+      buckets.add(bucket);
+      if (buckets.size > 48) return { aggressive: true };
+    }
+  }
+
+  return { aggressive: buckets.size > 24 };
+}
+
+function cropCanvasToVisibleBounds(sourceCanvas) {
+  const sourceCtx = sourceCanvas.getContext("2d");
+  const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+  const data = imageData.data;
+  let minX = sourceCanvas.width;
+  let minY = sourceCanvas.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < sourceCanvas.height; y += 1) {
+    for (let x = 0; x < sourceCanvas.width; x += 1) {
+      const index = (y * sourceCanvas.width + x) * 4;
+      if (data[index + 3] <= 12) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return sourceCanvas;
+
+  const padding = Math.max(2, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * 0.01));
+  const cropX = Math.max(0, minX - padding);
+  const cropY = Math.max(0, minY - padding);
+  const cropRight = Math.min(sourceCanvas.width, maxX + padding + 1);
+  const cropBottom = Math.min(sourceCanvas.height, maxY + padding + 1);
+  const cropWidth = Math.max(1, cropRight - cropX);
+  const cropHeight = Math.max(1, cropBottom - cropY);
+
+  if (cropWidth === sourceCanvas.width && cropHeight === sourceCanvas.height) return sourceCanvas;
+
+  const croppedCanvas = document.createElement("canvas");
+  croppedCanvas.width = cropWidth;
+  croppedCanvas.height = cropHeight;
+  const croppedCtx = croppedCanvas.getContext("2d");
+  croppedCtx.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+  return croppedCanvas;
+}
+
+function normalizeCatalogPayload(payload) {
+  const records = expandCatalogPayload(payload);
+  return records
+    .map((record, index) => normalizeCatalogRecord(record, index))
+    .filter(Boolean)
+    .sort((left, right) => {
+      const nameCompare = left.name.localeCompare(right.name, "pt-BR");
+      if (nameCompare !== 0) return nameCompare;
+      return left.code.localeCompare(right.code, "pt-BR");
+    });
+}
+
+function expandCatalogPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.produtos)) return payload.produtos.flatMap(expandAsiaApiProduct);
+  return [];
+}
+
+function expandAsiaApiProduct(product) {
+  const variations = Array.isArray(product?.variacoes) && product.variacoes.length ? product.variacoes : [null];
+  return variations.map((variation) => ({
+    fornecedorId: "asia",
+    supplierName: "Asia Import",
+    CodigoComposto: variation?.referencia || product?.referencia || "",
+    CodigoAmigavel: product?.referencia || "",
+    CodigoXbz: product?.referencia || "",
+    Nome: variation?.nome || product?.nome || "",
+    Descricao: product?.descricao || "",
+    SiteLink: product?.link || product?.url || "",
+    ImageLink: variation?.imagem || product?.imagem || "",
+    CorWebPrincipal:
+      variation?.atributos?.cor?.value || variation?.atributos?.cor?.name || firstObjectValue(product?.cores) || "",
+    QuantidadeDisponivel: Number(variation?.qtd_estoque ?? 0),
+    Ncm: variation?.ncm || product?.propriedades?.ncm || "",
+    PrecoVenda: Number(variation?.preco ?? product?.preco ?? 0),
+    category: firstObjectValue(product?.categorias) || "",
+    dimensions:
+      product?.propriedades?.["dimensao-produto"] ||
+      product?.propriedades?.["dimensão-produto"] ||
+      product?.propriedades?.["dimensao do produto"] ||
+      "",
+  }));
+}
+
+function normalizeCatalogRecord(record, index) {
+  if (!record || typeof record !== "object") return null;
+
+  if (record.code && record.name && record.src) {
+    const category = resolveCatalogCategory(record.category, [record.name, record.description, ...(record.searchTerms || [])].join(" "));
+    return {
+      ...record,
+      category,
+      id:
+        record.id ||
+        buildCatalogId(record.sourceSupplier || record.supplierName || "catalogo", record.code, record.supplierCode, index),
+      sourceSupplier: record.sourceSupplier || record.supplierName || "",
+      supplierName: record.supplierName || humanizeSupplier(record.sourceSupplier || ""),
+      supplierCode: record.supplierCode || "",
+      searchTerms: buildCatalogSearchTerms(record, record),
+      safeArea: sanitizeSafeArea(record.safeArea, category),
+    };
+  }
+
+  const sourceSupplier = cleanCatalogText(record.sourceSupplier || record.fornecedorId || record.supplierId || "");
+  const code = cleanCatalogText(
+    record.code || record.CodigoComposto || record.CodigoAmigavel || record.CodigoXbz || record.referencia || record.codigo,
+  );
+  const name = cleanCatalogText(record.name || record.Nome || record.nome);
+  const src = cleanCatalogText(record.src || record.ImageLink || record.sourceImage || record.image || record.imagem);
+
+  if (!code || !name || !src) return null;
+
+  const description = cleanCatalogText(record.description || record.Descricao || record.descricao);
+  const category = resolveCatalogCategory(
+    cleanCatalogText(record.category || record.WebTipo || record.WebSubTipo || firstObjectValue(record.categorias)),
+    `${name} ${description}`,
+  );
+  const techniques = normalizeCatalogTechniques(record.techniques, `${name} ${description}`);
+
+  return {
+    id: buildCatalogId(sourceSupplier, code, record.CodigoXbz || record.CodigoAmigavel || record.referencia, index),
+    code,
+    name,
+    category,
+    src,
+    sourceUrl: cleanCatalogText(record.sourceUrl || record.SiteLink || record.url),
+    sourceImage: cleanCatalogText(record.sourceImage || record.ImageLink || record.image || record.imagem),
+    sourceSupplier,
+    supplierName: cleanCatalogText(record.supplierName) || humanizeSupplier(sourceSupplier),
+    supplierCode: cleanCatalogText(record.supplierCode || record.CodigoXbz || record.CodigoAmigavel || record.referencia),
+    color: cleanCatalogText(record.color || record.CorWebPrincipal || record.cor || record.corPrincipal) || "A definir",
+    techniques,
+    dimensions: cleanCatalogText(record.dimensions) || buildCatalogDimensions(record) || "A definir",
+    area: cleanCatalogText(record.area) || defaultCatalogArea(category),
+    minimumQuantity: cleanCatalogText(record.minimumQuantity || record.quantidadeMinima) || "A definir",
+    removePreviewBg: record.removePreviewBg !== false,
+    safeArea: sanitizeSafeArea(record.safeArea, category),
+    searchTerms: buildCatalogSearchTerms(
+      {
+        code,
+        name,
+        category,
+        supplierName: cleanCatalogText(record.supplierName) || humanizeSupplier(sourceSupplier),
+        supplierCode: cleanCatalogText(record.supplierCode || record.CodigoXbz || record.CodigoAmigavel || record.referencia),
+        color: cleanCatalogText(record.color || record.CorWebPrincipal || record.cor || record.corPrincipal),
+        techniques,
+        sourceSupplier,
+      },
+      record,
+    ),
+  };
+}
+
+function removeEdgeBackgroundFromMask(imageData, width, height, background) {
+  const data = imageData.data;
+  const tolerance = 22;
+  const visited = new Uint8Array(width * height);
+  const queue = [];
+
+  const tryAdd = (x, y) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const pixelIndex = y * width + x;
+    if (visited[pixelIndex]) return;
+    const dataIndex = pixelIndex * 4;
+    const alpha = data[dataIndex + 3];
+    if (alpha <= 0) return;
+    const distance = colorDistance(
+      data[dataIndex],
+      data[dataIndex + 1],
+      data[dataIndex + 2],
+      background.red,
+      background.green,
+      background.blue,
+    );
+    const brightBackground = data[dataIndex] > 244 && data[dataIndex + 1] > 244 && data[dataIndex + 2] > 244;
+    if (distance > tolerance && !brightBackground) return;
     visited[pixelIndex] = 1;
     queue.push(pixelIndex);
   };
@@ -528,6 +944,157 @@ function removeSolidBackgroundConnectedToEdges(imageData, width, height) {
     if (!visited[pixelIndex]) continue;
     data[pixelIndex * 4 + 3] = 0;
   }
+}
+
+function buildCatalogId(sourceSupplier, code, supplierCode, index) {
+  return [sourceSupplier || "catalogo", code || "sem-codigo", supplierCode || index].filter(Boolean).join(":");
+}
+
+function buildCatalogSearchTerms(product, record) {
+  return [
+    product.code,
+    product.name,
+    product.category,
+    product.color,
+    product.supplierCode,
+    product.supplierName,
+    product.sourceSupplier,
+    ...(Array.isArray(product.techniques) ? product.techniques : []),
+    record?.CodigoXbz,
+    record?.CodigoAmigavel,
+    record?.CodigoComposto,
+    record?.Nome,
+    record?.Descricao,
+    record?.WebTipo,
+    record?.WebSubTipo,
+    ...Object.values(record?.categorias || {}),
+  ]
+    .map((value) => cleanCatalogText(value))
+    .filter(Boolean);
+}
+
+function sanitizeSafeArea(area, category) {
+  const fallback = defaultCatalogSafeArea(category);
+  if (!area || typeof area !== "object") return fallback;
+  const x = Number(area.x);
+  const y = Number(area.y);
+  const width = Number(area.width);
+  const height = Number(area.height);
+  if (![x, y, width, height].every(Number.isFinite)) return fallback;
+  return { x, y, width, height };
+}
+
+function defaultCatalogSafeArea(category) {
+  const areas = {
+    Canetas: { x: 350, y: 320, width: 500, height: 92 },
+    Squeezes: { x: 420, y: 220, width: 360, height: 300 },
+    Canecas: { x: 390, y: 230, width: 420, height: 260 },
+    Cadernos: { x: 350, y: 180, width: 500, height: 360 },
+    Sacolas: { x: 360, y: 190, width: 480, height: 340 },
+    Mochilas: { x: 380, y: 190, width: 440, height: 330 },
+    "Mouse Pads": { x: 300, y: 210, width: 600, height: 390 },
+    Churrasco: { x: 320, y: 210, width: 580, height: 320 },
+  };
+  return areas[category] || { x: 360, y: 210, width: 480, height: 300 };
+}
+
+function defaultCatalogArea(category) {
+  const labels = {
+    Canetas: "Corpo da caneta",
+    Squeezes: "Área frontal do squeeze",
+    Canecas: "Área frontal da caneca",
+    Cadernos: "Capa frontal",
+    Sacolas: "Painel frontal da sacola",
+    Mochilas: "Bolso ou painel frontal",
+    "Mouse Pads": "Área plana do mouse pad",
+    Churrasco: "Face principal do produto",
+  };
+  return labels[category] || "Área sugerida no produto";
+}
+
+function inferCatalogCategory(text) {
+  const value = normalizeText(text);
+  if (
+    value.includes("guarda chuva") ||
+    value.includes("guardachuva") ||
+    value.includes("umbrella") ||
+    value.includes("lancheira") ||
+    value.includes("lunch bag")
+  ) {
+    return "Guarda Chuvas &amp; Lancheiras";
+  }
+  if (value.includes("caneta") || value.includes("lapis")) return "Canetas";
+  if (value.includes("squeeze") || value.includes("garrafa") || value.includes("coqueteleira")) return "Squeezes";
+  if (value.includes("caneca") || value.includes("copo") || value.includes("taca")) return "Canecas";
+  if (value.includes("mochila") || value.includes("mala")) return "Mochilas";
+  if (value.includes("sacola") || value.includes("ecobag") || value.includes("bolsa")) return "Sacolas";
+  if (value.includes("caderno") || value.includes("bloco") || value.includes("agenda")) return "Cadernos";
+  if (value.includes("mouse pad")) return "Mouse Pads";
+  if (value.includes("churrasqueira") || value.includes("grelha") || value.includes("churrasco")) return "Churrasco";
+  return "Outros";
+}
+
+function resolveCatalogCategory(explicitCategory, fallbackText = "") {
+  const cleaned = cleanCatalogText(explicitCategory);
+  const normalized = normalizeText(cleaned);
+  const inferred = inferCatalogCategory(`${cleaned} ${fallbackText}`);
+  if (!cleaned) return inferred;
+  if (normalized === "outros" || normalized === "sem categoria") return inferred;
+  return cleaned;
+}
+
+function normalizeCatalogTechniques(value, fallbackText = "") {
+  if (Array.isArray(value) && value.length) return value;
+  const haystack = normalizeText(`${cleanCatalogText(value)} ${fallbackText}`);
+  const matches = [
+    ["Laser", "laser"],
+    ["Serigrafia", "serigrafia"],
+    ["Tampografia", "tampografia"],
+    ["UV digital", "uv"],
+    ["Sublimacao", "sublim"],
+    ["Transfer", "transfer"],
+    ["Bordado", "bordado"],
+    ["Baixo-relevo", "baixo relevo"],
+  ]
+    .filter(([, needle]) => haystack.includes(needle))
+    .map(([label]) => label);
+  return matches.length ? [...new Set(matches)] : ["A definir"];
+}
+
+function buildCatalogDimensions(record) {
+  if (record?.propriedades?.["dimensao-produto"]) return cleanCatalogText(record.propriedades["dimensao-produto"]);
+  if (record?.propriedades?.["dimensão-produto"]) return cleanCatalogText(record.propriedades["dimensão-produto"]);
+
+  const dimensions = [
+    ["Alt.", record?.Altura],
+    ["Larg.", record?.Largura],
+    ["Prof.", record?.Profundidade],
+    ["Comp.", record?.Comprimento],
+  ]
+    .map(([label, value]) => [label, Number(value)])
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .map(([label, value]) => `${label} ${String(value).replace(".", ",")} cm`);
+
+  return dimensions.join(" | ");
+}
+
+function humanizeSupplier(value) {
+  const labels = {
+    xbz: "XBZ",
+    asia: "Asia Import",
+    spotgifts: "Spot Gifts",
+  };
+  const normalized = cleanCatalogText(value).toLowerCase();
+  return labels[normalized] || cleanCatalogText(value).toUpperCase();
+}
+
+function firstObjectValue(value) {
+  if (!value || typeof value !== "object") return "";
+  return Object.values(value).find(Boolean) || "";
+}
+
+function cleanCatalogText(value) {
+  return typeof value === "string" ? value.trim() : String(value ?? "").trim();
 }
 
 function getLogoContentProtectionRadius(width, height) {
@@ -1129,6 +1696,18 @@ function getProductPlacement() {
   };
 }
 
+function getLogoConstraintRect() {
+  const placement = getProductPlacement();
+  const insetX = Math.max(6, placement.width * 0.015);
+  const insetY = Math.max(6, placement.height * 0.015);
+  return {
+    x: placement.x + insetX,
+    y: placement.y + insetY,
+    width: Math.max(40, placement.width - insetX * 2),
+    height: Math.max(40, placement.height - insetY * 2),
+  };
+}
+
 function getProductFrame() {
   return { x: 90, y: 128, width: 1020, height: 498 };
 }
@@ -1199,6 +1778,12 @@ function drawLogo(targetCtx, width, height) {
 }
 
 function drawLogoClippedToProduct(targetCtx, width, height, includeSelection = false) {
+  if (!shouldClipLogoToProduct()) {
+    if (false && state.logoQuad) drawWarpedLogo(targetCtx, width, height);
+    else drawLogo(targetCtx, width, height);
+    return;
+  }
+
   const logoLayer = document.createElement("canvas");
   logoLayer.width = canvas.width;
   logoLayer.height = canvas.height;
@@ -1217,6 +1802,10 @@ function drawLogoClippedToProduct(targetCtx, width, height, includeSelection = f
 
   targetCtx.drawImage(logoLayer, 0, 0);
   if (includeSelection && false && state.logoSelected && state.logoQuad) drawWarpHandles(targetCtx);
+}
+
+function shouldClipLogoToProduct() {
+  return state.removeBackground || state.logoHasTransparency;
 }
 
 function drawWarpedLogo(targetCtx, width, height) {
@@ -1280,31 +1869,33 @@ function createProductMask() {
   const maskCtx = maskCanvas.getContext("2d");
 
   if (!state.product || (!state.product.width && !state.product.naturalWidth)) return maskCanvas;
+  if (state.productCanSampleMask === false) return createSafeAreaMask();
 
   const placement = getProductPlacement();
   maskCtx.drawImage(state.productMask || state.product, placement.x, placement.y, placement.width, placement.height);
 
-  const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-  const data = imageData.data;
-  let visiblePixels = 0;
-  for (let index = 0; index < data.length; index += 4) {
-    const red = data[index];
-    const green = data[index + 1];
-    const blue = data[index + 2];
-    const alpha = data[index + 3];
-    const max = Math.max(red, green, blue);
-    const min = Math.min(red, green, blue);
-    const backgroundLike = alpha < 20;
-    data[index] = 255;
-    data[index + 1] = 255;
-    data[index + 2] = 255;
-    data[index + 3] = backgroundLike ? 0 : 255;
-    if (!backgroundLike) visiblePixels += 1;
-  }
-  maskCtx.putImageData(imageData, 0, 0);
+  try {
+    const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+    const data = imageData.data;
+    let visiblePixels = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      const alpha = data[index + 3];
+      const backgroundLike = alpha < 20;
+      data[index] = 255;
+      data[index + 1] = 255;
+      data[index + 2] = 255;
+      data[index + 3] = backgroundLike ? 0 : 255;
+      if (!backgroundLike) visiblePixels += 1;
+    }
+    maskCtx.putImageData(imageData, 0, 0);
 
-  if (visiblePixels < 1200) return createSafeAreaMask();
-  return maskCanvas;
+    if (visiblePixels < 1200) return createSafeAreaMask();
+    return maskCanvas;
+  } catch (error) {
+    state.productCanSampleMask = false;
+    console.warn("Leitura da mascara bloqueada; usando area segura.", error);
+    return createSafeAreaMask();
+  }
 }
 
 function createSafeAreaMask() {
@@ -1454,6 +2045,77 @@ function getLogoSize() {
   return { width, height };
 }
 
+function buildLogoQuadFromState() {
+  if (!state.logo) return null;
+  const size = getLogoSize();
+  const halfWidth = size.width / 2;
+  const halfHeight = size.height / 2;
+  const points = [
+    { key: "tl", x: -halfWidth, y: -halfHeight },
+    { key: "tr", x: halfWidth, y: -halfHeight },
+    { key: "br", x: halfWidth, y: halfHeight },
+    { key: "bl", x: -halfWidth, y: halfHeight },
+  ];
+  const angle = (state.rotation * Math.PI) / 180;
+  return Object.fromEntries(
+    points.map((point) => [
+      point.key,
+      {
+        x: state.logoX + point.x * Math.cos(angle) - point.y * Math.sin(angle),
+        y: state.logoY + point.x * Math.sin(angle) + point.y * Math.cos(angle),
+      },
+    ]),
+  );
+}
+
+function getQuadBounds(quad = state.logoQuad) {
+  if (!quad) return null;
+  const points = Object.values(quad);
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return {
+    left: Math.min(...xs),
+    top: Math.min(...ys),
+    right: Math.max(...xs),
+    bottom: Math.max(...ys),
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys),
+  };
+}
+
+function constrainLogoToProduct() {
+  if (!state.logo) return;
+
+  const rect = getLogoConstraintRect();
+  if (!rect.width || !rect.height) return;
+
+  state.logoQuad = buildLogoQuadFromState();
+  let bounds = getQuadBounds();
+  if (!bounds) return;
+
+  if (bounds.width > rect.width || bounds.height > rect.height) {
+    const fitFactor = Math.min(rect.width / bounds.width, rect.height / bounds.height, 1);
+    state.scale = Math.max(0.01, state.scale * fitFactor * 0.98);
+    scaleControl.value = Math.round(state.scale * 100);
+    state.logoQuad = buildLogoQuadFromState();
+    bounds = getQuadBounds();
+  }
+
+  let shiftX = 0;
+  let shiftY = 0;
+  if (bounds.left < rect.x) shiftX = rect.x - bounds.left;
+  else if (bounds.right > rect.x + rect.width) shiftX = rect.x + rect.width - bounds.right;
+
+  if (bounds.top < rect.y) shiftY = rect.y - bounds.top;
+  else if (bounds.bottom > rect.y + rect.height) shiftY = rect.y + rect.height - bounds.bottom;
+
+  state.logoX += shiftX;
+  state.logoY += shiftY;
+  xControl.value = Math.round(state.logoX);
+  yControl.value = Math.round(state.logoY);
+  state.logoQuad = buildLogoQuadFromState();
+}
+
 function resetLogoSettings() {
   beginUndo("reset-settings");
   state.logoX = canvas.width * 0.5;
@@ -1477,25 +2139,8 @@ function resetLogoSettings() {
 
 function resetLogoQuad() {
   if (!state.logo) return;
-  const size = getLogoSize();
-  const halfWidth = size.width / 2;
-  const halfHeight = size.height / 2;
-  const points = [
-    { key: "tl", x: -halfWidth, y: -halfHeight },
-    { key: "tr", x: halfWidth, y: -halfHeight },
-    { key: "br", x: halfWidth, y: halfHeight },
-    { key: "bl", x: -halfWidth, y: halfHeight },
-  ];
-  const angle = (state.rotation * Math.PI) / 180;
-  state.logoQuad = Object.fromEntries(
-    points.map((point) => [
-      point.key,
-      {
-        x: state.logoX + point.x * Math.cos(angle) - point.y * Math.sin(angle),
-        y: state.logoY + point.x * Math.sin(angle) + point.y * Math.cos(angle),
-      },
-    ]),
-  );
+  state.logoQuad = buildLogoQuadFromState();
+  constrainLogoToProduct();
 }
 
 function applyLogoColor(targetCtx, width, height) {
@@ -1546,7 +2191,7 @@ function openApprovalSheet() {
     <html lang="pt-BR">
       <head>
         <meta charset="UTF-8" />
-        <title>Amostra Virtual Elo Brindes</title>
+        <title>Amostra Simples Elo Brindes</title>
         <style>
           * { box-sizing: border-box; }
           body { margin: 0; padding: 26px; color: #1d211f; font-family: Arial, Helvetica, sans-serif; background: #eef3f0; }
@@ -1567,7 +2212,7 @@ function openApprovalSheet() {
           .title span { font-weight: 300; }
           .info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 48px; padding: 22px 20px 10px; }
           .info .wide { grid-column: span 1; }
-          .info-bottom { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; padding: 0 20px 18px; }
+          .info-bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 46px; padding: 0 20px 18px; }
           .sample-field { min-height: 48px; padding: 8px 13px; color: #fff; background: #ff5a18; font-size: 16px; line-height: 1.2; }
           .sample-field strong { font-weight: 400; }
           .sample-field span { font-weight: 800; }
@@ -1592,7 +2237,7 @@ function openApprovalSheet() {
             <span class="stripe"></span>
             <span class="stripe two"></span>
             <div class="brand"><strong>elo</strong> brindes</div>
-            <div class="title"><strong>Amostra</strong> <span>Virtual</span></div>
+            <div class="title"><strong>Amostra</strong> <span>Simples</span></div>
           </header>
           <section class="info">
             ${sampleField("Cliente", client || company || "A definir")}
@@ -1602,6 +2247,7 @@ function openApprovalSheet() {
             ${sampleField("Produto", product.name || "Imagem própria")}
             ${sampleField("Cor", product.color || colorLabel() || "A definir")}
             ${sampleField("Cód.", product.code || "Manual")}
+            ${sampleField("Tipo de gravação", techniqueLabelForValue(state.technique))}
           </section>
           <section class="mockup">
             <img src="${dataUrl}" alt="Mockup Elo Preview" />
@@ -1958,11 +2604,9 @@ function handlePointerMove(event) {
   }
   if (!state.isDragging) return;
   const point = canvasPoint(event);
-  const previousX = state.logoX;
-  const previousY = state.logoY;
   state.logoX = point.x - state.dragOffsetX;
   state.logoY = point.y - state.dragOffsetY;
-  moveLogoQuad(state.logoX - previousX, state.logoY - previousY);
+  constrainLogoToProduct();
   syncPositionControls();
   draw();
 }
@@ -2062,9 +2706,9 @@ function clamp(value, min, max) {
 }
 
 productGrid.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-code]");
+  const option = event.target.closest("[data-product-id]");
   if (!option) return;
-  const product = state.products.find((item) => item.code === option.dataset.code);
+  const product = state.products.find((item) => item.id === option.dataset.productId);
   if (product) selectProduct(product);
 });
 
@@ -2075,6 +2719,7 @@ productUpload.addEventListener("change", (event) => {
     state.selectedProduct = null;
     state.productCleanups = [];
     state.cleanupDraft = null;
+    updateExperienceSummary();
     loadProductImage(src, true);
   });
 });
@@ -2157,17 +2802,15 @@ logoCutoutControl.addEventListener("change", () => endControlUndo("logo-cutout")
 
 xControl.addEventListener("input", () => {
   pushControlUndo("x");
-  const previousX = state.logoX;
   state.logoX = Number(xControl.value);
-  moveLogoQuad(state.logoX - previousX, 0);
+  constrainLogoToProduct();
   draw();
 });
 
 yControl.addEventListener("input", () => {
   pushControlUndo("y");
-  const previousY = state.logoY;
   state.logoY = Number(yControl.value);
-  moveLogoQuad(0, state.logoY - previousY);
+  constrainLogoToProduct();
   draw();
 });
 
@@ -2241,6 +2884,7 @@ techniqueControl.addEventListener("change", () => {
   beginUndo("technique");
   state.technique = techniqueControl.value;
   updateContrastAlert();
+  updateExperienceSummary();
   commitUndo("technique");
   draw();
 });
