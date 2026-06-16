@@ -491,6 +491,7 @@ function removeWhiteConnectedToEdges(imageData, width, height) {
   const tolerance = state.logoCutout;
   const visited = new Uint8Array(width * height);
   const queue = [];
+  const protectionRadius = getLogoContentProtectionRadius(width, height);
 
   const tryAdd = (x, y) => {
     if (x < 0 || y < 0 || x >= width || y >= height) return;
@@ -498,6 +499,7 @@ function removeWhiteConnectedToEdges(imageData, width, height) {
     if (visited[pixelIndex]) return;
     const dataIndex = pixelIndex * 4;
     if (!isNearWhitePixel(data, dataIndex, tolerance)) return;
+    if (hasNearbyLogoContent(data, width, height, x, y, protectionRadius)) return;
     visited[pixelIndex] = 1;
     queue.push(pixelIndex);
   };
@@ -523,15 +525,12 @@ function removeWhiteConnectedToEdges(imageData, width, height) {
 
   for (let pixelIndex = 0; pixelIndex < visited.length; pixelIndex += 1) {
     if (!visited[pixelIndex]) continue;
-    const x = pixelIndex % width;
-    const y = Math.floor(pixelIndex / width);
-    if (hasNearbyLogoContent(data, width, height, x, y, getLogoContentProtectionRadius(width, height))) continue;
     data[pixelIndex * 4 + 3] = 0;
   }
 }
 
 function getLogoContentProtectionRadius(width, height) {
-  return Math.round(clamp(Math.min(width, height) * 0.055, 10, 42));
+  return Math.round(clamp(Math.min(width, height) * 0.08, 18, 64));
 }
 
 function isNearWhitePixel(data, index, tolerance) {
