@@ -596,6 +596,41 @@ canvas {
   background: rgba(17, 130, 104, 0.1);
 }
 
+.fine-preview-card {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  border: 1px solid rgba(216, 228, 221, 0.92);
+  border-radius: 10px;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(248, 251, 249, 0.92), rgba(255, 255, 255, 0.98));
+}
+
+.fine-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fine-preview-head strong {
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.fine-preview-head span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.fine-preview-canvas {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(22, 31, 27, 0.12);
+}
+
 input[type="search"],
 input[type="text"],
 input[type="number"],

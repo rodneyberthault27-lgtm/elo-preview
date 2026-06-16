@@ -165,6 +165,19 @@
               <details class="advanced-controls live-advanced-controls">
                 <summary>Abrir ajustes finos</summary>
                 <p class="hint">No uso simples, clique e arraste o logo direto no produto. Aqui ficam os refinamentos mais delicados.</p>
+                <div class="fine-preview-card" aria-label="Previa compacta dos ajustes">
+                  <div class="fine-preview-head">
+                    <strong>Previa do ajuste</strong>
+                    <span>Atualiza em tempo real</span>
+                  </div>
+                  <canvas
+                    id="finePreviewCanvas"
+                    class="fine-preview-canvas"
+                    width="1200"
+                    height="760"
+                    aria-label="Previa compacta do mockup"
+                  ></canvas>
+                </div>
                 <label class="range-row">
                   <span>Horizontal</span>
                   <input id="xControl" type="range" min="0" max="1200" value="600" />
@@ -269,6 +282,6 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=20260616-ajustes-laterais"></script>
+    <script src="./app.js?v=20260616-ficha-em-rota-real"></script>
   </body>
 </html>

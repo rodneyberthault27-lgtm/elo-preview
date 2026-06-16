@@ -24,6 +24,8 @@ const opacityControl = document.querySelector("#opacityControl");
 const bendControl = document.querySelector("#bendControl");
 const logoCutoutControl = document.querySelector("#logoCutoutControl");
 const resetSettingsBtn = document.querySelector("#resetSettingsBtn");
+const finePreviewCanvas = document.querySelector("#finePreviewCanvas");
+const finePreviewCtx = finePreviewCanvas ? finePreviewCanvas.getContext("2d") : null;
 const logoColorMode = document.querySelector("#logoColorMode");
 const logoColorWheel = document.querySelector("#logoColorWheel");
 const logoColorPreview = document.querySelector("#logoColorPreview");
@@ -1165,6 +1167,7 @@ function isLogoContentPixel(data, index) {
 
 function draw() {
   renderScene(ctx, true);
+  if (finePreviewCtx) renderScene(finePreviewCtx, false);
 }
 
 function renderScene(targetCtx, includeSelection) {
@@ -2172,7 +2175,8 @@ function exportImage() {
   draw();
 }
 
-function openApprovalSheet() {
+function openApprovalSheet(options = {}) {
+  const { autoPrint = false } = options;
   const mockup = document.createElement("canvas");
   mockup.width = canvas.width;
   mockup.height = canvas.height;
@@ -2181,6 +2185,7 @@ function openApprovalSheet() {
   const product = state.selectedProduct || {};
   const date = new Date().toLocaleDateString("pt-BR");
   const reference = `OP-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+  const exportCode = sanitizeFilenamePart(product.code || "manual");
   const client = valueOf("#clientName");
   const company = valueOf("#companyName");
   const quantity = valueOf("#quantity");
@@ -2229,6 +2234,7 @@ function openApprovalSheet() {
       </head>
       <body>
         <nav class="toolbar">
+          <button class="secondary" type="button" onclick="window.history.back()">Voltar ao editor</button>
           <button class="secondary" type="button" onclick="window.close()">Fechar</button>
           <button type="button" onclick="window.print()">Salvar PDF / Imprimir</button>
         </nav>
@@ -2262,13 +2268,35 @@ function openApprovalSheet() {
             Produção sujeita à análise técnica, arquivo original, área real de gravação, técnica escolhida e viabilidade do produto.
           </section>
         </article>
+        ${autoPrint ? '<script>window.addEventListener("load", () => window.setTimeout(() => window.print(), 280));</script>' : ""}
       </body>
     </html>
   `;
 
-  const sheetUrl = URL.createObjectURL(new Blob([sheet], { type: "text/html;charset=utf-8" }));
-  window.open(sheetUrl, "_blank");
-  window.setTimeout(() => URL.revokeObjectURL(sheetUrl), 60000);
+  const sheetKey = `elo-approval-sheet:${Date.now()}:${exportCode}`;
+
+  try {
+    localStorage.setItem(sheetKey, sheet);
+  } catch (error) {
+    downloadApprovalSheetHtml(sheet, `elo-amostra-${exportCode}.html`);
+    window.alert("Nao foi possivel preparar a ficha no navegador. Baixamos o arquivo HTML para voce abrir manualmente.");
+    return;
+  }
+
+  const sheetViewerUrl = new URL(`approval-sheet.html?sheet=${encodeURIComponent(sheetKey)}`, window.location.href).toString();
+  const openInCurrentTab = () => window.location.assign(sheetViewerUrl);
+
+  try {
+    const sheetWindow = window.open(sheetViewerUrl, "_blank");
+    if (sheetWindow) {
+      sheetWindow.focus();
+      return;
+    }
+  } catch (error) {
+    console.warn("Nao foi possivel abrir a ficha em nova aba.", error);
+  }
+
+  openInCurrentTab();
 }
 
 function sheetField(label, value) {
@@ -2281,6 +2309,25 @@ function sampleField(label, value) {
 
 function valueOf(selector) {
   return document.querySelector(selector).value.trim();
+}
+
+function downloadApprovalSheetHtml(content, filename) {
+  const file = new Blob([content], { type: "text/html;charset=utf-8" });
+  const fileUrl = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = fileUrl;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
+}
+
+function sanitizeFilenamePart(value) {
+  return String(value || "arquivo")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
 }
 
 function getProductTitle() {
@@ -2920,8 +2967,8 @@ canvas.addEventListener(
 
 downloadBtn.addEventListener("click", exportImage);
 approvalBtn.addEventListener("click", openApprovalSheet);
-printSheetBtn.addEventListener("click", openApprovalSheet);
-downloadSheetBtn.addEventListener("click", openApprovalSheet);
+printSheetBtn.addEventListener("click", () => openApprovalSheet());
+downloadSheetBtn.addEventListener("click", () => openApprovalSheet({ autoPrint: true }));
 
 document.addEventListener("keydown", (event) => {
   const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z";
