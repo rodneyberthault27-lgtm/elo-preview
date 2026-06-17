@@ -3625,10 +3625,10 @@ canvas.addEventListener(
   { passive: false },
 );
 
-downloadBtn.addEventListener("click", exportImage);
-approvalBtn.addEventListener("click", openApprovalSheet);
-printSheetBtn.addEventListener("click", () => openApprovalSheet({ autoPrint: true }));
-downloadSheetBtn.addEventListener("click", openApprovalSheet);
+downloadBtn?.addEventListener("click", exportImage);
+approvalBtn?.addEventListener("click", openApprovalSheet);
+printSheetBtn?.addEventListener("click", () => openApprovalSheet({ autoPrint: true }));
+downloadSheetBtn?.addEventListener("click", openApprovalSheet);
 
 document.addEventListener("keydown", (event) => {
   const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z";
