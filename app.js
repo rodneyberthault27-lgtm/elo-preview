@@ -66,7 +66,7 @@ const state = {
   logoHasTransparency: false,
   logoFile: null,
   products: [],
-  visibleProductCount: 80,
+  visibleProductCount: 48,
   selectedProduct: null,
   activeCategory: "all",
   logoX: Number(xControl.value),
@@ -111,9 +111,7 @@ updateExperienceSummary();
 
 async function loadProducts() {
   try {
-    const response = await fetch("./products.json");
-    if (!response.ok) throw new Error("Nao foi possivel carregar products.json");
-    state.products = normalizeCatalogPayload(await response.json());
+    state.products = normalizeCatalogPayload(await fetchCatalogPayload());
     renderCategoryButtons();
     renderProducts();
     if (state.products[0]) selectProduct(state.products[0]);
@@ -141,19 +139,7 @@ function renderCategoryButtons() {
 function renderProducts() {
   const term = normalizeText(productSearch.value);
   const filtered = state.products.filter((product) => {
-    const haystack = normalizeText(
-      [
-        product.code,
-        product.name,
-        product.category,
-        product.color,
-        product.sourceSupplier,
-        product.supplierName,
-        product.supplierCode,
-        ...(product.techniques || []),
-        ...(product.searchTerms || []),
-      ].join(" "),
-    );
+    const haystack = product.searchIndex || buildCatalogSearchIndex(product);
     const matchesTerm = !term || haystack.includes(term);
     const matchesCategory = state.activeCategory === "all" || product.category === state.activeCategory;
     return matchesTerm && matchesCategory;
@@ -172,6 +158,7 @@ function renderProducts() {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
   visibleProducts.forEach((product) => {
     const button = document.createElement("button");
     button.className = `product-option${state.selectedProduct?.id === product.id ? " is-active" : ""}`;
@@ -181,8 +168,9 @@ function renderProducts() {
       <img src="${product.src}" alt="${product.name}" loading="lazy" />
       <span>${product.code}<br>${product.name}</span>
     `;
-    productGrid.appendChild(button);
+    fragment.appendChild(button);
   });
+  productGrid.appendChild(fragment);
 }
 
 function selectProduct(product) {
@@ -193,7 +181,7 @@ function selectProduct(product) {
   state.productCleanups = [];
   state.cleanupDraft = null;
   loadProductImage(product.src, product.removePreviewBg);
-  techniqueControl.value = techniqueToValue(product.techniques?.[0] || "Laser");
+  techniqueControl.value = "none";
   state.technique = techniqueControl.value;
   renderProducts();
   updateContrastAlert();
@@ -206,29 +194,30 @@ function loadProductImage(src, removePreviewBg = false) {
   state.productMask = null;
   state.productCanSampleMask = true;
   draw();
-  loadProductImageAttempt(src, removePreviewBg, loadNonce, !isLocalCanvasSafeSource(src));
+  loadProductImageAttempt(getProductImageCandidates(src), removePreviewBg, loadNonce);
 }
 
-function loadProductImageAttempt(src, removePreviewBg, loadNonce, useAnonymous) {
+function loadProductImageAttempt(candidates, removePreviewBg, loadNonce, index = 0) {
+  const candidate = candidates[index];
+  if (!candidate) {
+    console.warn("Nao foi possivel carregar a imagem do produto.");
+    return;
+  }
   const image = new Image();
-  if (useAnonymous) image.crossOrigin = "anonymous";
+  if (candidate.useAnonymous) image.crossOrigin = "anonymous";
   image.onload = () => {
     if (loadNonce !== state.productLoadNonce) return;
     state.product = image;
-    state.productCanSampleMask = useAnonymous || isLocalCanvasSafeSource(src);
+    state.productCanSampleMask = candidate.canSampleMask;
     state.productMask = removePreviewBg ? createProductMaskSource(image) : image;
     if (state.logo) resetLogoQuad();
     draw();
   };
   image.onerror = () => {
     if (loadNonce !== state.productLoadNonce) return;
-    if (useAnonymous) {
-      loadProductImageAttempt(src, removePreviewBg, loadNonce, false);
-      return;
-    }
-    console.warn("Nao foi possivel carregar a imagem do produto:", src);
+    loadProductImageAttempt(candidates, removePreviewBg, loadNonce, index + 1);
   };
-  image.src = src;
+  image.src = candidate.src;
 }
 
 function createProductMaskSource(image) {
@@ -250,6 +239,23 @@ function createProductMaskSource(image) {
     console.warn("Mascara do produto indisponivel; usando area segura.", error);
     return image;
   }
+}
+
+async function fetchCatalogPayload() {
+  const candidates = ["./products.catalog.json", "./products.local.json", "./products.json"];
+  let lastError = null;
+
+  for (const url of candidates) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Nao foi possivel carregar ${url}`);
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Nao foi possivel carregar o catalogo");
 }
 
 function setupResizablePanels() {
@@ -290,8 +296,8 @@ function setupHorizontalResizer(handle, config) {
   });
 
   handle.addEventListener("pointerdown", (event) => {
-    if (window.matchMedia("(max-width: 1360px)").matches && handle === controlsResizer) return;
-    if (window.matchMedia("(max-width: 1450px)").matches && handle === shellResizer) return;
+    if (window.matchMedia("(max-width: 1024px)").matches && handle === controlsResizer) return;
+    if (window.matchMedia("(max-width: 1180px)").matches && handle === shellResizer) return;
 
     const startX = event.clientX;
     const startWidth = config.getStartWidth();
@@ -347,6 +353,41 @@ function getComputedPixelValue(element, cssVariable, fallback) {
 
 function isLocalCanvasSafeSource(src) {
   return src.startsWith("data:") || src.startsWith("blob:") || !/^https?:\/\//i.test(src);
+}
+
+function getProductImageCandidates(src) {
+  if (isLocalCanvasSafeSource(src)) {
+    return [{ src, useAnonymous: false, canSampleMask: true }];
+  }
+
+  const proxySrc = buildCanvasSafeRemoteUrl(src);
+  const candidates = [];
+
+  if (proxySrc && proxySrc !== src) {
+    candidates.push({ src: proxySrc, useAnonymous: true, canSampleMask: true });
+  }
+
+  candidates.push({ src, useAnonymous: true, canSampleMask: true });
+  candidates.push({ src, useAnonymous: false, canSampleMask: false });
+
+  return dedupeImageCandidates(candidates);
+}
+
+function buildCanvasSafeRemoteUrl(src) {
+  if (!/^https?:\/\//i.test(src)) return src;
+  if (/images\.weserv\.nl/i.test(src)) return src;
+  const normalized = src.replace(/^https?:\/\//i, "");
+  return `https://images.weserv.nl/?url=${encodeURIComponent(normalized)}`;
+}
+
+function dedupeImageCandidates(candidates) {
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    const key = `${candidate.src}|${candidate.useAnonymous}|${candidate.canSampleMask}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function estimateBackgroundColor(data) {
@@ -655,14 +696,17 @@ function updateExperienceSummary() {
 
   if (currentTechniqueName) currentTechniqueName.textContent = techniqueLabel;
   if (currentTechniqueMeta) {
-    currentTechniqueMeta.textContent = state.logo
-      ? "A combinacao de cor e tecnica atualiza a previa em tempo real."
-      : "Escolha a tecnica para orientar a simulacao comercial.";
+    currentTechniqueMeta.textContent = state.technique === "none"
+      ? "Defina a tecnica so quando quiser simular o acabamento final."
+      : state.logo
+        ? "A combinacao de cor e tecnica atualiza a previa em tempo real."
+        : "Escolha a tecnica para orientar a simulacao comercial.";
   }
 }
 
 function techniqueLabelForValue(value) {
   const labels = {
+    none: "Nenhum",
     laser: "Laser",
     silk: "Serigrafia",
     uv: "UV digital",
@@ -670,7 +714,7 @@ function techniqueLabelForValue(value) {
     bordado: "Bordado",
     "baixo-relevo": "Baixo-relevo",
   };
-  return labels[value] || "Laser";
+  return labels[value] || "Nenhum";
 }
 
 function processLogoImage(image) {
@@ -728,7 +772,7 @@ function processLogoImage(image) {
     const finalImageData = logoCtx.getImageData(0, 0, logoCanvas.width, logoCanvas.height);
     state.logoHasTransparency = hasUsefulTransparency(finalImageData.data);
     if (state.removeBackground || state.logoHasTransparency) {
-      processedCanvas = cropCanvasToVisibleBounds(logoCanvas);
+      processedCanvas = cropCanvasToVisibleBounds(logoCanvas, removalProfile);
       const croppedCtx = processedCanvas.getContext("2d");
       const croppedData = croppedCtx.getImageData(0, 0, processedCanvas.width, processedCanvas.height);
       state.logoHasTransparency = hasUsefulTransparency(croppedData.data);
@@ -1105,10 +1149,11 @@ function analyzeBackgroundRemoval(imageData, width, height) {
   };
 }
 
-function cropCanvasToVisibleBounds(sourceCanvas) {
+function cropCanvasToVisibleBounds(sourceCanvas, profile = {}) {
   const sourceCtx = sourceCanvas.getContext("2d");
   const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
   const data = imageData.data;
+  const alphaThreshold = profile.lineArt ? 2 : profile.posterizedBackdrop ? 6 : 10;
   let minX = sourceCanvas.width;
   let minY = sourceCanvas.height;
   let maxX = -1;
@@ -1117,7 +1162,7 @@ function cropCanvasToVisibleBounds(sourceCanvas) {
   for (let y = 0; y < sourceCanvas.height; y += 1) {
     for (let x = 0; x < sourceCanvas.width; x += 1) {
       const index = (y * sourceCanvas.width + x) * 4;
-      if (data[index + 3] <= 12) continue;
+      if (data[index + 3] <= alphaThreshold) continue;
       if (x < minX) minX = x;
       if (y < minY) minY = y;
       if (x > maxX) maxX = x;
@@ -1127,7 +1172,15 @@ function cropCanvasToVisibleBounds(sourceCanvas) {
 
   if (maxX < minX || maxY < minY) return sourceCanvas;
 
-  const padding = Math.max(2, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * 0.01));
+  const basePaddingRatio = profile.lineArt ? 0.05 : profile.posterizedBackdrop ? 0.035 : 0.02;
+  const basePadding = Math.max(profile.lineArt ? 10 : 6, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * basePaddingRatio));
+  const touchesEdge =
+    minX <= basePadding ||
+    minY <= basePadding ||
+    sourceCanvas.width - maxX - 1 <= basePadding ||
+    sourceCanvas.height - maxY - 1 <= basePadding;
+  const edgeBonus = touchesEdge ? Math.max(6, Math.round(basePadding * 0.75)) : 0;
+  const padding = basePadding + edgeBonus;
   const cropX = Math.max(0, minX - padding);
   const cropY = Math.max(0, minY - padding);
   const cropRight = Math.min(sourceCanvas.width, maxX + padding + 1);
@@ -1142,7 +1195,43 @@ function cropCanvasToVisibleBounds(sourceCanvas) {
   croppedCanvas.height = cropHeight;
   const croppedCtx = croppedCanvas.getContext("2d");
   croppedCtx.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-  return croppedCanvas;
+  return ensureCanvasPadding(croppedCanvas, profile);
+}
+
+function ensureCanvasPadding(sourceCanvas, profile = {}) {
+  const edgeThreshold = profile.lineArt ? 8 : 4;
+  const edgeTouch = hasOpaquePixelsNearCanvasEdge(sourceCanvas, edgeThreshold, profile.lineArt ? 2 : 8);
+  if (!edgeTouch) return sourceCanvas;
+
+  const extraPadding = Math.max(profile.lineArt ? 12 : 8, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * (profile.lineArt ? 0.04 : 0.025)));
+  const paddedCanvas = document.createElement("canvas");
+  paddedCanvas.width = sourceCanvas.width + extraPadding * 2;
+  paddedCanvas.height = sourceCanvas.height + extraPadding * 2;
+  const paddedCtx = paddedCanvas.getContext("2d");
+  paddedCtx.drawImage(sourceCanvas, extraPadding, extraPadding);
+  return paddedCanvas;
+}
+
+function hasOpaquePixelsNearCanvasEdge(sourceCanvas, borderSize, alphaThreshold) {
+  const ctx2d = sourceCanvas.getContext("2d");
+  const imageData = ctx2d.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+  const data = imageData.data;
+  const border = Math.max(1, Math.min(borderSize, Math.floor(Math.min(sourceCanvas.width, sourceCanvas.height) / 3)));
+
+  for (let y = 0; y < sourceCanvas.height; y += 1) {
+    for (let x = 0; x < sourceCanvas.width; x += 1) {
+      const nearEdge =
+        x < border ||
+        y < border ||
+        x >= sourceCanvas.width - border ||
+        y >= sourceCanvas.height - border;
+      if (!nearEdge) continue;
+      const index = (y * sourceCanvas.width + x) * 4;
+      if (data[index + 3] > alphaThreshold) return true;
+    }
+  }
+
+  return false;
 }
 
 function normalizeCatalogPayload(payload) {
@@ -1193,17 +1282,21 @@ function normalizeCatalogRecord(record, index) {
   if (!record || typeof record !== "object") return null;
 
   if (record.code && record.name && record.src) {
+    const sourceSupplier = cleanCatalogText(record.sourceSupplier || record.supplier || record.supplierName || "");
+    const supplierName = cleanCatalogText(record.supplierName) || humanizeSupplier(sourceSupplier);
+    const techniques = normalizeCatalogTechniques(record.techniques || record.technique, `${record.name} ${record.description || ""}`);
     const category = resolveCatalogCategory(record.category, [record.name, record.description, ...(record.searchTerms || [])].join(" "));
     return {
       ...record,
       category,
       id:
         record.id ||
-        buildCatalogId(record.sourceSupplier || record.supplierName || "catalogo", record.code, record.supplierCode, index),
-      sourceSupplier: record.sourceSupplier || record.supplierName || "",
-      supplierName: record.supplierName || humanizeSupplier(record.sourceSupplier || ""),
+        buildCatalogId(sourceSupplier || supplierName || "catalogo", record.code, record.supplierCode, index),
+      sourceSupplier,
+      supplierName,
       supplierCode: record.supplierCode || "",
-      searchTerms: buildCatalogSearchTerms(record, record),
+      techniques,
+      searchIndex: record.searchIndex || buildCatalogSearchIndex({ ...record, sourceSupplier, supplierName, techniques }),
       safeArea: sanitizeSafeArea(record.safeArea, category),
     };
   }
@@ -1222,7 +1315,7 @@ function normalizeCatalogRecord(record, index) {
     cleanCatalogText(record.category || record.WebTipo || record.WebSubTipo || firstObjectValue(record.categorias)),
     `${name} ${description}`,
   );
-  const techniques = normalizeCatalogTechniques(record.techniques, `${name} ${description}`);
+  const techniques = normalizeCatalogTechniques(record.techniques || record.technique, `${name} ${description}`);
 
   return {
     id: buildCatalogId(sourceSupplier, code, record.CodigoXbz || record.CodigoAmigavel || record.referencia, index),
@@ -1242,7 +1335,7 @@ function normalizeCatalogRecord(record, index) {
     minimumQuantity: cleanCatalogText(record.minimumQuantity || record.quantidadeMinima) || "A definir",
     removePreviewBg: record.removePreviewBg !== false,
     safeArea: sanitizeSafeArea(record.safeArea, category),
-    searchTerms: buildCatalogSearchTerms(
+    searchIndex: buildCatalogSearchIndex(
       {
         code,
         name,
@@ -1252,8 +1345,7 @@ function normalizeCatalogRecord(record, index) {
         color: cleanCatalogText(record.color || record.CorWebPrincipal || record.cor || record.corPrincipal),
         techniques,
         sourceSupplier,
-      },
-      record,
+      }
     ),
   };
 }
@@ -1335,6 +1427,23 @@ function buildCatalogSearchTerms(product, record) {
   ]
     .map((value) => cleanCatalogText(value))
     .filter(Boolean);
+}
+
+function buildCatalogSearchIndex(product) {
+  return [
+    product.code,
+    product.name,
+    product.category,
+    product.color,
+    product.supplierCode,
+    product.supplierName,
+    product.sourceSupplier,
+    ...(Array.isArray(product.techniques) ? product.techniques : product.technique ? [product.technique] : []),
+  ]
+    .map((value) => normalizeText(value))
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .join(" ");
 }
 
 function sanitizeSafeArea(area, category) {
@@ -2224,39 +2333,7 @@ function createProcessedLogoCanvas(width, height, padding = 0) {
 }
 
 function createProductMask() {
-  const maskCanvas = document.createElement("canvas");
-  maskCanvas.width = canvas.width;
-  maskCanvas.height = canvas.height;
-  const maskCtx = maskCanvas.getContext("2d");
-
-  if (!state.product || (!state.product.width && !state.product.naturalWidth)) return maskCanvas;
-  if (state.productCanSampleMask === false) return createSafeAreaMask();
-
-  const placement = getProductPlacement();
-  maskCtx.drawImage(state.productMask || state.product, placement.x, placement.y, placement.width, placement.height);
-
-  try {
-    const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-    const data = imageData.data;
-    let visiblePixels = 0;
-    for (let index = 0; index < data.length; index += 4) {
-      const alpha = data[index + 3];
-      const backgroundLike = alpha < 20;
-      data[index] = 255;
-      data[index + 1] = 255;
-      data[index + 2] = 255;
-      data[index + 3] = backgroundLike ? 0 : 255;
-      if (!backgroundLike) visiblePixels += 1;
-    }
-    maskCtx.putImageData(imageData, 0, 0);
-
-    if (visiblePixels < 1200) return createSafeAreaMask();
-    return maskCanvas;
-  } catch (error) {
-    state.productCanSampleMask = false;
-    console.warn("Leitura da mascara bloqueada; usando area segura.", error);
-    return createSafeAreaMask();
-  }
+  return createSafeAreaMask();
 }
 
 function createSafeAreaMask() {
@@ -2264,7 +2341,15 @@ function createSafeAreaMask() {
   maskCanvas.width = canvas.width;
   maskCanvas.height = canvas.height;
   const maskCtx = maskCanvas.getContext("2d");
-  const area = state.selectedProduct?.safeArea || getProductFrame();
+  const placement = getProductPlacement();
+  const insetX = Math.max(3, placement.width * 0.01);
+  const insetY = Math.max(3, placement.height * 0.01);
+  const area = {
+    x: placement.x + insetX,
+    y: placement.y + insetY,
+    width: Math.max(24, placement.width - insetX * 2),
+    height: Math.max(24, placement.height - insetY * 2),
+  };
   maskCtx.fillStyle = "#ffffff";
   maskCtx.fillRect(area.x, area.y, area.width, area.height);
   return maskCanvas;
@@ -2765,7 +2850,7 @@ function openApprovalSheet(options = {}) {
           <section class="info-bottom">
             ${sampleField("Produto", product.name || "Imagem própria")}
             ${sampleField("Cor", product.color || colorLabel() || "A definir")}
-            ${sampleField("Cód.", product.code || "Manual")}
+            ${sampleField("Cód.", formatApprovalProductCode(product))}
             ${sampleField("Tipo de gravação", techniqueLabelForValue(state.technique))}
           </section>
           <section class="mockup">
@@ -2786,10 +2871,28 @@ function openApprovalSheet(options = {}) {
     </html>
   `;
 
+  try {
+    const sheetBlob = new Blob([sheet], { type: "text/html;charset=utf-8" });
+    const sheetBlobUrl = URL.createObjectURL(sheetBlob);
+    window.setTimeout(() => URL.revokeObjectURL(sheetBlobUrl), 120000);
+
+    const sheetWindow = window.open(sheetBlobUrl, "_blank");
+    if (sheetWindow) {
+      sheetWindow.focus?.();
+      return;
+    }
+
+    window.location.assign(sheetBlobUrl);
+    return;
+  } catch (error) {
+    console.warn("Nao foi possivel abrir a ficha diretamente em nova aba.", error);
+  }
+
   const sheetKey = `elo-approval-sheet:${Date.now()}:${exportCode}`;
 
   try {
     localStorage.setItem(sheetKey, sheet);
+    localStorage.setItem("elo-approval-sheet:last", sheet);
   } catch (error) {
     downloadApprovalSheetHtml(sheet, `elo-amostra-${exportCode}.html`);
     window.alert("Nao foi possivel preparar a ficha no navegador. Baixamos o arquivo HTML para voce abrir manualmente.");
@@ -2797,19 +2900,7 @@ function openApprovalSheet(options = {}) {
   }
 
   const sheetViewerUrl = new URL(`approval-sheet.html?sheet=${encodeURIComponent(sheetKey)}`, window.location.href).toString();
-  const openInCurrentTab = () => window.location.assign(sheetViewerUrl);
-
-  try {
-    const sheetWindow = window.open(sheetViewerUrl, "_blank");
-    if (sheetWindow) {
-      sheetWindow.focus();
-      return;
-    }
-  } catch (error) {
-    console.warn("Nao foi possivel abrir a ficha em nova aba.", error);
-  }
-
-  openInCurrentTab();
+  window.location.assign(sheetViewerUrl);
 }
 
 function sheetField(label, value) {
@@ -2818,6 +2909,27 @@ function sheetField(label, value) {
 
 function sampleField(label, value) {
   return `<div class="sample-field"><strong>${escapeHtml(label)}:</strong> <span>${escapeHtml(value || "A definir")}</span></div>`;
+}
+
+function formatApprovalProductCode(product) {
+  const rawCode = cleanCatalogText(product?.code || "");
+  if (!rawCode) return "Manual";
+
+  const supplier = cleanCatalogText(product?.sourceSupplier || product?.supplierName || "").toLowerCase();
+  const prefix = supplier.includes("spot")
+    ? "S"
+    : supplier.includes("xbz")
+      ? "X"
+      : supplier.includes("asia")
+        ? "A"
+        : "";
+
+  if (!prefix) return rawCode;
+
+  const normalizedCode = rawCode.toUpperCase();
+  if (normalizedCode.startsWith(prefix)) return rawCode;
+
+  return `${prefix}${rawCode}`;
 }
 
 function valueOf(selector) {
@@ -3035,6 +3147,7 @@ function rgbToHex({ red, green, blue }) {
 
 function techniqueLabel(value) {
   const labels = {
+    none: "Nenhum",
     laser: "Laser",
     silk: "Serigrafia",
     uv: "UV digital",
@@ -3319,7 +3432,7 @@ clearPhotoLogoBtn.addEventListener("click", () => {
 });
 
 productSearch.addEventListener("input", () => {
-  state.visibleProductCount = 80;
+  state.visibleProductCount = 48;
   renderProducts();
 });
 
@@ -3329,12 +3442,12 @@ quickCats.addEventListener("click", (event) => {
   quickCats.querySelectorAll("[data-category]").forEach((item) => item.classList.remove("is-active"));
   button.classList.add("is-active");
   state.activeCategory = button.dataset.category;
-  state.visibleProductCount = 80;
+  state.visibleProductCount = 48;
   renderProducts();
 });
 
 loadMoreProductsBtn.addEventListener("click", () => {
-  state.visibleProductCount += 80;
+  state.visibleProductCount += 48;
   renderProducts();
 });
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Elo Preview</title>
-    <link rel="stylesheet" href="./styles.css?v=20260616-approval-inline" />
+    <link rel="stylesheet" href="./styles.css?v=20260617-layout-colunas" />
   </head>
   <body>
     <main class="app-shell">
@@ -36,8 +36,8 @@
           </article>
           <article class="summary-card summary-card-technique">
             <span class="summary-label">Tecnica visual</span>
-            <strong id="currentTechniqueName">Laser</strong>
-            <span id="currentTechniqueMeta">Ajuste cor e acabamento vendo a previa ao lado.</span>
+            <strong id="currentTechniqueName">Nenhum</strong>
+            <span id="currentTechniqueMeta">Escolha a tecnica somente quando quiser simular o metodo de gravacao.</span>
           </article>
         </section>
 
@@ -173,6 +173,7 @@
             <label class="range-row">
               <span>Tecnica</span>
               <select id="techniqueControl">
+                <option value="none" selected>Nenhum</option>
                 <option value="laser">Laser</option>
                 <option value="silk">Serigrafia</option>
                 <option value="uv">UV digital</option>
@@ -293,6 +294,6 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=20260617-mesclar-branco"></script>
+    <script src="./app.js?v=20260617-tecnica-nenhum"></script>
   </body>
 </html>

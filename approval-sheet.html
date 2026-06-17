@@ -48,18 +48,13 @@
       (() => {
         const params = new URLSearchParams(window.location.search);
         const sheetKey = params.get("sheet");
-        const content = sheetKey ? window.localStorage.getItem(sheetKey) : "";
+        const content =
+          (sheetKey ? window.localStorage.getItem(sheetKey) : "") || window.localStorage.getItem("elo-approval-sheet:last") || "";
 
         if (!content) {
           document.querySelector(".loading").innerHTML =
             "<strong>Ficha indisponivel</strong><p>Essa previa expirou ou nao foi gerada corretamente. Volte ao Elo Preview e gere a ficha novamente.</p>";
           return;
-        }
-
-        try {
-          window.localStorage.removeItem(sheetKey);
-        } catch (error) {
-          console.warn("Nao foi possivel limpar a ficha temporaria.", error);
         }
 
         document.open();
