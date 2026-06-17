@@ -109,6 +109,8 @@ loadProducts();
 drawColorWheel();
 updateExperienceSummary();
 
+let catalogScriptPromise = null;
+
 async function loadProducts() {
   try {
     state.products = normalizeCatalogPayload(await fetchCatalogPayload());
@@ -117,7 +119,7 @@ async function loadProducts() {
     if (state.products[0]) selectProduct(state.products[0]);
   } catch (error) {
     productCount.textContent = "Catálogo indisponível";
-    productGrid.innerHTML = '<p class="hint">Rode por um servidor local para carregar o catálogo.</p>';
+    productGrid.innerHTML = '<p class="hint">Não consegui carregar o catálogo. Verifique se o arquivo products.catalog.js está na mesma pasta do index.html.</p>';
     console.error(error);
   }
 }
@@ -242,6 +244,15 @@ function createProductMaskSource(image) {
 }
 
 async function fetchCatalogPayload() {
+  if (Array.isArray(window.ELO_PREVIEW_PRODUCTS_CATALOG) && window.ELO_PREVIEW_PRODUCTS_CATALOG.length) {
+    return window.ELO_PREVIEW_PRODUCTS_CATALOG;
+  }
+
+  const loadedFromScript = await ensureCatalogScriptLoaded();
+  if (loadedFromScript && Array.isArray(window.ELO_PREVIEW_PRODUCTS_CATALOG) && window.ELO_PREVIEW_PRODUCTS_CATALOG.length) {
+    return window.ELO_PREVIEW_PRODUCTS_CATALOG;
+  }
+
   const candidates = ["./products.catalog.json", "./products.local.json", "./products.json"];
   let lastError = null;
 
@@ -256,6 +267,39 @@ async function fetchCatalogPayload() {
   }
 
   throw lastError || new Error("Nao foi possivel carregar o catalogo");
+}
+
+function ensureCatalogScriptLoaded() {
+  if (Array.isArray(window.ELO_PREVIEW_PRODUCTS_CATALOG) && window.ELO_PREVIEW_PRODUCTS_CATALOG.length) {
+    return Promise.resolve(true);
+  }
+
+  if (catalogScriptPromise) return catalogScriptPromise;
+
+  const sources = ["./products.catalog.js"];
+  catalogScriptPromise = new Promise((resolve) => {
+    const trySource = (index) => {
+      const source = sources[index];
+      if (!source) {
+        resolve(false);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = `${source}?v=20260617-catalog-fallback`;
+      script.async = true;
+      script.onload = () => resolve(Array.isArray(window.ELO_PREVIEW_PRODUCTS_CATALOG) && window.ELO_PREVIEW_PRODUCTS_CATALOG.length > 0);
+      script.onerror = () => {
+        script.remove();
+        trySource(index + 1);
+      };
+      document.head.appendChild(script);
+    };
+
+    trySource(0);
+  });
+
+  return catalogScriptPromise;
 }
 
 function setupResizablePanels() {
@@ -2870,23 +2914,6 @@ function openApprovalSheet(options = {}) {
       </body>
     </html>
   `;
-
-  try {
-    const sheetBlob = new Blob([sheet], { type: "text/html;charset=utf-8" });
-    const sheetBlobUrl = URL.createObjectURL(sheetBlob);
-    window.setTimeout(() => URL.revokeObjectURL(sheetBlobUrl), 120000);
-
-    const sheetWindow = window.open(sheetBlobUrl, "_blank");
-    if (sheetWindow) {
-      sheetWindow.focus?.();
-      return;
-    }
-
-    window.location.assign(sheetBlobUrl);
-    return;
-  } catch (error) {
-    console.warn("Nao foi possivel abrir a ficha diretamente em nova aba.", error);
-  }
 
   const sheetKey = `elo-approval-sheet:${Date.now()}:${exportCode}`;
 
