@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Elo Preview</title>
-    <link rel="stylesheet" href="./styles.css?v=20260616-inline-fine-adjustments" />
+    <link rel="stylesheet" href="./styles.css?v=20260616-approval-inline" />
   </head>
   <body>
     <main class="app-shell">
@@ -84,13 +84,41 @@
                 <input id="removeBgToggle" type="checkbox" />
                 <span>Remover fundo solido das bordas</span>
               </label>
+              <label class="check-row inline-check-row">
+                <input id="whiteBlendToggle" type="checkbox" />
+                <span>Mesclar branco no produto</span>
+              </label>
               <p id="qualityHint" class="hint">Use em logos com fundo solido. Para artes com partes da cor do fundo, deixe desligado.</p>
+            </section>
+
+            <section class="control-group approval-panel approval-panel-inline">
+              <div class="section-header section-header-simple">
+                <div class="section-index">3</div>
+                <div class="section-copy">
+                  <h2>Ficha de aprovacao</h2>
+                  <p>Preencha os dados e gere a amostra imprimivel sem descer a tela.</p>
+                </div>
+              </div>
+
+              <div class="approval-form-grid">
+                <label>Cliente<input id="clientName" type="text" placeholder="Nome do cliente" /></label>
+                <label>Empresa<input id="companyName" type="text" placeholder="Empresa" /></label>
+                <label>Quantidade<input id="quantity" type="number" min="1" value="500" /></label>
+                <label>Consultora<input id="consultant" type="text" placeholder="Responsavel Elo" /></label>
+              </div>
+              <label>Observacoes<textarea id="notes" rows="3">Logo aplicado em simulacao comercial. Verificar arquivo vetorial antes da producao.</textarea></label>
+              <div class="approval-actions approval-actions-inline">
+                <button id="printSheetBtn" class="primary-button" type="button">Gerar ficha imprimivel</button>
+                <button id="downloadSheetBtn" class="ghost-button" type="button">Abrir ficha</button>
+              </div>
             </section>
 
             <p class="legal-note">
               Simulacao visual. Producao sujeita a analise tecnica, area real de gravacao e viabilidade do produto.
             </p>
           </div>
+
+          <div id="controlsResizer" class="panel-resizer control-resizer" aria-hidden="true"></div>
 
           <section class="control-group live-controls">
             <div class="live-controls-head">
@@ -213,6 +241,8 @@
         </div>
       </section>
 
+      <div id="shellResizer" class="panel-resizer shell-resizer" aria-hidden="true"></div>
+
       <aside class="panel" aria-label="Controles do Elo Preview">
         <section class="control-group product-library">
           <div class="section-header">
@@ -260,28 +290,9 @@
           <p id="cleanupHint" class="hint">Ative e contorne o logo antigo com o mouse.</p>
         </section>
 
-        <section class="control-group approval-panel">
-          <div class="section-header section-header-simple">
-            <div class="section-index">4</div>
-            <div class="section-copy">
-              <h2>Ficha de aprovacao</h2>
-              <p>Preencha o minimo necessario para abrir a previa comercial imprimivel.</p>
-            </div>
-          </div>
-
-          <label>Cliente<input id="clientName" type="text" placeholder="Nome do cliente" /></label>
-          <label>Empresa<input id="companyName" type="text" placeholder="Empresa" /></label>
-          <label>Quantidade<input id="quantity" type="number" min="1" value="500" /></label>
-          <label>Consultora<input id="consultant" type="text" placeholder="Responsavel Elo" /></label>
-          <label>Observacoes<textarea id="notes" rows="3">Logo aplicado em simulacao comercial. Verificar arquivo vetorial antes da producao.</textarea></label>
-          <div class="approval-actions">
-            <button id="printSheetBtn" class="secondary-button" type="button">Gerar ficha imprimivel</button>
-            <button id="downloadSheetBtn" class="primary-button" type="button">Abrir ficha / PDF</button>
-          </div>
-        </section>
       </aside>
     </main>
 
-    <script src="./app.js?v=20260616-ficha-em-rota-real"></script>
+    <script src="./app.js?v=20260617-mesclar-branco"></script>
   </body>
 </html>

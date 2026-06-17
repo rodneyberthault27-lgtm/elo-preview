@@ -156,7 +156,7 @@ function normalizeAsiaPage(payload) {
 
 async function fetchSpotRows() {
   const authText = await fetchText("https://ws.spotgifts.com.br/api/v1SSL/AuthenticateClient?accessKey=19vNgPfapJqkeFcd");
-  const token = authText.match(/<Token>(.*?)<\/Token>/)?.[1];
+  const token = extractSpotToken(authText);
   if (!token) throw new Error("token nao retornado pela Spot Gifts");
 
   const [productsXml, stocksXml] = await Promise.all([
@@ -166,39 +166,85 @@ async function fetchSpotRows() {
 
   await fetchText(`https://ws.spotgifts.com.br/api/v1SSL/CloseSession?token=${token}`).catch(() => {});
 
+  const productPayload = parseSpotPayload(productsXml);
+  const stockPayload = parseSpotPayload(stocksXml);
+  const productItems = Array.isArray(productPayload?.OptionalsComplete)
+    ? productPayload.OptionalsComplete
+    : productsFromXml(productsXml, /<OptionalComplete>(.*?)<\/OptionalComplete>/gs).map((match) => match[1]);
+  const stockItems = Array.isArray(stockPayload?.Stocks)
+    ? stockPayload.Stocks
+    : productsFromXml(stocksXml, /<Stock>.*?<Sku>(.*?)<\/Sku>.*?<Quantity>(.*?)<\/Quantity>.*?<\/Stock>/gs).map((match) => ({
+        Sku: match[1],
+        Quantity: match[2],
+      }));
+
   const stockMap = {};
-  for (const match of productsFromXml(stocksXml, /<Stock>.*?<Sku>(.*?)<\/Sku>.*?<Quantity>(.*?)<\/Quantity>.*?<\/Stock>/gs)) {
-    stockMap[match[1]] = Number(match[2] || 0);
+  for (const item of stockItems) {
+    const sku = typeof item === "string" ? extractXmlField(item, "Sku") : item?.Sku;
+    if (!sku) continue;
+    const quantity = typeof item === "string" ? extractXmlField(item, "Quantity") : item?.Quantity;
+    stockMap[sku] = Number(quantity || 0);
   }
 
-  const rows = [];
-  for (const match of productsFromXml(productsXml, /<OptionalComplete>(.*?)<\/OptionalComplete>/gs)) {
-    const block = match[1];
-    const code = extractXmlField(block, "Sku");
-    if (!code) continue;
-    const name = extractXmlField(block, "Name");
-    const imageName = extractXmlField(block, "MainImage");
-    rows.push({
-      providerId: "spotgifts",
-      providerName: "Spot Gifts",
-      code,
-      baseCode: extractXmlField(block, "ProdReference") || "",
-      supplierCode: extractXmlField(block, "ProdReference") || "",
-      name,
-      description: extractXmlField(block, "Description") || "",
-      imageUrl: imageName ? `https://www.spotgifts.com.br/fotos/produtos/${imageName}` : "",
-      sourceUrl: "",
-      color: extractXmlField(block, "ColorDesc1") || "",
-      stock: Number(stockMap[code] || 0),
-      price: Number(extractXmlField(block, "YourPrice") || extractXmlField(block, "Price1") || 0),
-      ncm: extractXmlField(block, "Taric") || "",
-      categoryHint: "",
-      dimensions: extractXmlField(block, "Dimension") || "",
-      raw: { xml: block },
-    });
-  }
+  return productItems
+    .map((item) => normalizeSpotItem(item, stockMap))
+    .filter(Boolean);
+}
 
-  return rows;
+function extractSpotToken(authText) {
+  const xmlToken = authText.match(/<Token>(.*?)<\/Token>/)?.[1];
+  if (xmlToken) return xmlToken;
+  try {
+    return JSON.parse(authText)?.Token || "";
+  } catch {
+    return "";
+  }
+}
+
+function parseSpotPayload(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSpotItem(item, stockMap) {
+  const source = typeof item === "string" ? null : item;
+  const code = source?.Sku || extractXmlField(item, "Sku");
+  if (!code) return null;
+
+  const imageName = source?.MainImage || extractXmlField(item, "MainImage");
+  const description = source?.Description || extractXmlField(item, "Description") || "";
+  const type = source?.Type || extractXmlField(item, "Type") || "";
+  const subType = source?.SubType || extractXmlField(item, "SubType") || "";
+  const customizationTypes = source?.CustomizationTypes || extractXmlField(item, "CustomizationTypes") || "";
+  const defaultCustomization = source?.DefaultCustomization || extractXmlField(item, "DefaultCustomization") || "";
+
+  return {
+    providerId: "spotgifts",
+    providerName: "Spot Gifts",
+    code,
+    baseCode: source?.ProdReference || extractXmlField(item, "ProdReference") || "",
+    supplierCode: source?.ProdReference || extractXmlField(item, "ProdReference") || "",
+    name: source?.Name || extractXmlField(item, "Name") || "",
+    description,
+    customizationTypes,
+    imageUrl: imageName ? `https://www.spotgifts.com.br/fotos/produtos/${imageName}` : "",
+    sourceUrl: "",
+    color: source?.ColorDesc1 || extractXmlField(item, "ColorDesc1") || "",
+    stock: Number(stockMap[code] || 0),
+    price: Number(source?.YourPrice || source?.Price1 || extractXmlField(item, "YourPrice") || extractXmlField(item, "Price1") || 0),
+    ncm: source?.Taric || extractXmlField(item, "Taric") || "",
+    categoryHint: `${type} ${subType}`.trim(),
+    dimensions:
+      source?.CombinedSizes ||
+      source?.ProductComponentDefaultLocationAreaMM ||
+      extractXmlField(item, "CombinedSizes") ||
+      extractXmlField(item, "ProductComponentDefaultLocationAreaMM") ||
+      "",
+    raw: source || { xml: item, defaultCustomization },
+  };
 }
 
 function productsFromXml(text, regex) {
@@ -206,6 +252,7 @@ function productsFromXml(text, regex) {
 }
 
 function extractXmlField(block, tag) {
+  if (typeof block !== "string") return "";
   return block.match(new RegExp(`<${tag}>(.*?)<\\/${tag}>`))?.[1] || "";
 }
 
@@ -215,10 +262,15 @@ async function normalizeSupplierRow(row, index, { downloadImages }) {
   const imageUrl = cleanText(row.imageUrl);
   if (!code || !name || !imageUrl) return null;
 
-  const category = resolveCategory(cleanText(row.categoryHint), `${name} ${row.description}`);
-  const src = downloadImages ? await downloadImage(imageUrl, row.providerId, code) : imageUrl;
+  const inferredCategory = inferCategory(`${cleanText(row.categoryHint)} ${name} ${row.description}`);
+  const resolvedCategory = resolveCategory(cleanText(row.categoryHint), `${name} ${row.description}`);
+  const category =
+    row.providerId === "spotgifts" || resolvedCategory.length > 26 || resolvedCategory.includes(",")
+      ? inferredCategory
+      : resolvedCategory;
+  const src = downloadImages ? await downloadImage(imageUrl, row.providerId, code).catch(() => imageUrl) : imageUrl;
   const color = cleanText(row.color) || "A definir";
-  const techniques = inferTechniques(`${name} ${row.description}`);
+  const techniques = inferTechniques(`${name} ${row.description} ${row.customizationTypes || ""}`);
 
   return {
     id: `${row.providerId}:${code}:${row.supplierCode || row.baseCode || index}`,
@@ -378,16 +430,16 @@ function resolveCategory(explicitCategory, fallbackText = "") {
 function inferTechniques(text) {
   const haystack = normalize(text);
   const matches = [
-    ["Laser", "laser"],
-    ["Serigrafia", "serigrafia"],
-    ["Tampografia", "tampografia"],
-    ["UV digital", "uv"],
-    ["Sublimacao", "sublim"],
-    ["Transfer", "transfer"],
-    ["Bordado", "bordado"],
-    ["Baixo-relevo", "baixo relevo"],
+    ["Laser", ["laser", "laser engraving", "gravacao a laser", "engraving"]],
+    ["Serigrafia", ["serigrafia", "silk", "silk screen", "screen print", "screen printing"]],
+    ["Tampografia", ["tampografia", "pad print", "pad printing"]],
+    ["UV digital", ["uv", "uv digital", "digital uv", "uv print"]],
+    ["Sublimacao", ["sublim", "sublimacao", "sublimation"]],
+    ["Transfer", ["transfer", "termo transfer", "heat transfer"]],
+    ["Bordado", ["bordado", "embroidery", "embroidered"]],
+    ["Baixo-relevo", ["baixo relevo", "baixo-relevo", "deboss", "debossed", "emboss"]],
   ]
-    .filter(([, needle]) => haystack.includes(needle))
+    .filter(([, needles]) => needles.some((needle) => haystack.includes(needle)))
     .map(([label]) => label);
   return matches.length ? [...new Set(matches)] : ["A definir"];
 }

@@ -16,6 +16,7 @@ const cleanupOpacityControl = document.querySelector("#cleanupOpacityControl");
 const cleanupFeatherControl = document.querySelector("#cleanupFeatherControl");
 const cleanupBlurControl = document.querySelector("#cleanupBlurControl");
 const removeBgToggle = document.querySelector("#removeBgToggle");
+const whiteBlendToggle = document.querySelector("#whiteBlendToggle");
 const xControl = document.querySelector("#xControl");
 const yControl = document.querySelector("#yControl");
 const scaleControl = document.querySelector("#scaleControl");
@@ -50,6 +51,10 @@ const previewSupplier = document.querySelector("#previewSupplier");
 const liveProductThumb = document.querySelector("#liveProductThumb");
 const liveProductTitle = document.querySelector("#liveProductTitle");
 const liveProductDetails = document.querySelector("#liveProductDetails");
+const appShell = document.querySelector(".app-shell");
+const editorLayout = document.querySelector(".editor-layout");
+const shellResizer = document.querySelector("#shellResizer");
+const controlsResizer = document.querySelector("#controlsResizer");
 
 const state = {
   product: new Image(),
@@ -74,6 +79,7 @@ const state = {
   logoColor: "#0f7a6c",
   technique: techniqueControl.value,
   removeBackground: removeBgToggle.checked,
+  whiteBlend: whiteBlendToggle?.checked || false,
   logoCutout: Number(logoCutoutControl.value),
   cleanupMode: false,
   productCleanups: [],
@@ -98,6 +104,7 @@ const state = {
 };
 
 state.product.crossOrigin = "anonymous";
+setupResizablePanels();
 loadProducts();
 drawColorWheel();
 updateExperienceSummary();
@@ -243,6 +250,99 @@ function createProductMaskSource(image) {
     console.warn("Mascara do produto indisponivel; usando area segura.", error);
     return image;
   }
+}
+
+function setupResizablePanels() {
+  applyStoredPanelSizes();
+  setupHorizontalResizer(shellResizer, {
+    storageKey: "elo-preview-sidebar-width",
+    target: appShell,
+    cssVariable: "--sidebar-width",
+    min: 300,
+    max: () => Math.min(520, Math.max(340, window.innerWidth * 0.42)),
+    defaultWidth: 344,
+    getStartWidth: () => getComputedPixelValue(appShell, "--sidebar-width", 344),
+    calculateWidth: (startWidth, deltaX) => startWidth - deltaX,
+  });
+  setupHorizontalResizer(controlsResizer, {
+    storageKey: "elo-preview-live-width",
+    target: editorLayout,
+    cssVariable: "--live-panel-width",
+    min: 272,
+    max: () => Math.min(460, Math.max(300, window.innerWidth * 0.34)),
+    defaultWidth: 304,
+    getStartWidth: () => getComputedPixelValue(editorLayout, "--live-panel-width", 304),
+    calculateWidth: (startWidth, deltaX) => startWidth - deltaX,
+  });
+
+  window.addEventListener("resize", applyStoredPanelSizes);
+}
+
+function setupHorizontalResizer(handle, config) {
+  if (!handle || !config.target) return;
+
+  handle.title = "Arraste para redimensionar os paineis";
+  handle.addEventListener("dblclick", () => {
+    const fallbackWidth = Number(config.defaultWidth || config.min || 300);
+    config.target.style.setProperty(config.cssVariable, `${fallbackWidth}px`);
+    localStorage.setItem(config.storageKey, String(Math.round(fallbackWidth)));
+    draw();
+  });
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (window.matchMedia("(max-width: 1360px)").matches && handle === controlsResizer) return;
+    if (window.matchMedia("(max-width: 1450px)").matches && handle === shellResizer) return;
+
+    const startX = event.clientX;
+    const startWidth = config.getStartWidth();
+    const minWidth = Number(config.min || 240);
+    const maxWidth = Number(typeof config.max === "function" ? config.max() : config.max || 640);
+
+    handle.classList.add("is-dragging");
+    handle.setPointerCapture?.(event.pointerId);
+
+    const onPointerMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const nextWidth = clamp(config.calculateWidth(startWidth, deltaX), minWidth, maxWidth);
+      config.target.style.setProperty(config.cssVariable, `${nextWidth}px`);
+    };
+
+    const onPointerUp = (upEvent) => {
+      handle.classList.remove("is-dragging");
+      handle.releasePointerCapture?.(upEvent.pointerId);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      const finalWidth = getComputedPixelValue(config.target, config.cssVariable, startWidth);
+      localStorage.setItem(config.storageKey, String(Math.round(finalWidth)));
+      draw();
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  });
+}
+
+function applyStoredPanelSizes() {
+  const sidebarWidth = clamp(
+    Number(localStorage.getItem("elo-preview-sidebar-width") || 344),
+    300,
+    Math.min(520, Math.max(340, window.innerWidth * 0.42)),
+  );
+  const liveWidth = clamp(
+    Number(localStorage.getItem("elo-preview-live-width") || 304),
+    272,
+    Math.min(460, Math.max(300, window.innerWidth * 0.34)),
+  );
+
+  appShell?.style.setProperty("--sidebar-width", `${sidebarWidth}px`);
+  editorLayout?.style.setProperty("--live-panel-width", `${liveWidth}px`);
+}
+
+function getComputedPixelValue(element, cssVariable, fallback) {
+  if (!element) return fallback;
+  const raw = getComputedStyle(element).getPropertyValue(cssVariable).trim();
+  const parsed = Number.parseFloat(raw.replace("px", ""));
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function isLocalCanvasSafeSource(src) {
@@ -391,6 +491,7 @@ function createUndoSnapshot() {
     logoColor: state.logoColor,
     technique: state.technique,
     removeBackground: state.removeBackground,
+    whiteBlend: state.whiteBlend,
     logoCutout: state.logoCutout,
     cleanupSettings: { ...state.cleanupSettings },
     productCleanups: state.productCleanups.map(cloneCleanup),
@@ -456,6 +557,7 @@ function restoreUndoSnapshot(snapshot) {
   state.logoColor = snapshot.logoColor;
   state.technique = snapshot.technique;
   state.removeBackground = snapshot.removeBackground;
+  state.whiteBlend = snapshot.whiteBlend ?? false;
   state.logoCutout = snapshot.logoCutout ?? Number(logoCutoutControl.value);
   state.cleanupSettings = snapshot.cleanupSettings ? { ...snapshot.cleanupSettings } : readCleanupSettings();
   state.productCleanups = snapshot.productCleanups.map(cloneCleanup);
@@ -484,6 +586,7 @@ function syncAllControls() {
   logoColorMode.value = state.logoColorMode;
   techniqueControl.value = state.technique;
   removeBgToggle.checked = state.removeBackground;
+  if (whiteBlendToggle) whiteBlendToggle.checked = state.whiteBlend;
   logoCutoutControl.value = Math.round(state.logoCutout);
   cleanupIntensityControl.value = Math.round(state.cleanupSettings.intensity);
   cleanupOpacityControl.value = Math.round(state.cleanupSettings.opacity);
@@ -591,6 +694,31 @@ function processLogoImage(image) {
         backgroundCleanup.tolerance,
         removalProfile,
       );
+      decontaminateLogoEdges(
+        imageData,
+        logoCanvas.width,
+        logoCanvas.height,
+        backgroundCleanup.background,
+        backgroundCleanup.tolerance,
+        removalProfile,
+      );
+      applySolidBackdropMatte(
+        imageData,
+        logoCanvas.width,
+        logoCanvas.height,
+        backgroundCleanup.background,
+        backgroundCleanup.tolerance,
+        removalProfile,
+      );
+      clearGlobalBackdropPixels(
+        imageData,
+        logoCanvas.width,
+        logoCanvas.height,
+        backgroundCleanup.background,
+        backgroundCleanup.tolerance,
+        removalProfile,
+      );
+      clearTransparentFringeNoise(imageData, logoCanvas.width, logoCanvas.height, backgroundCleanup.background, removalProfile);
     }
     logoCtx.putImageData(imageData, 0, 0);
   }
@@ -624,10 +752,10 @@ function hasUsefulTransparency(data) {
 function removeSolidBackgroundConnectedToEdges(imageData, width, height, profile = {}) {
   const data = imageData.data;
   const background = estimateLogoEdgeBackground(data, width, height);
-  const tolerance = Math.max(18, state.logoCutout * (profile.aggressive ? 1.55 : 1.35));
+  const tolerance = Math.max(18, state.logoCutout * (profile.lineArt ? 1.85 : profile.aggressive ? 1.55 : 1.35));
   const visited = new Uint8Array(width * height);
   const queue = [];
-  const protectionRadius = profile.aggressive ? 0 : getLogoContentProtectionRadius(width, height);
+  const protectionRadius = profile.aggressive || profile.lineArt ? 0 : getLogoContentProtectionRadius(width, height);
 
   const tryAdd = (x, y) => {
     if (x < 0 || y < 0 || x >= width || y >= height) return;
@@ -709,6 +837,164 @@ function trimResidualBackgroundHalo(imageData, width, height, background, baseTo
   }
 }
 
+function decontaminateLogoEdges(imageData, width, height, background, baseTolerance, profile = {}) {
+  const data = imageData.data;
+  const snapshot = new Uint8ClampedArray(data);
+  const edgeTolerance = baseTolerance + (profile.aggressive ? 22 : 14);
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const index = (y * width + x) * 4;
+      const alpha = snapshot[index + 3];
+      if (alpha <= 0) continue;
+
+      const transparentNeighbors = countTransparentNeighbors(snapshot, width, height, x, y);
+      if (!transparentNeighbors) continue;
+
+      const opaqueNeighbors = countOpaqueNeighbors(snapshot, width, height, x, y);
+      if (!opaqueNeighbors) continue;
+
+      const distance = colorDistance(
+        snapshot[index],
+        snapshot[index + 1],
+        snapshot[index + 2],
+        background.red,
+        background.green,
+        background.blue,
+      );
+      if (distance > edgeTolerance) continue;
+
+      const matteRatio = clamp(1 - distance / edgeTolerance, 0, 1);
+      const alphaFactor = clamp(alpha / 255 - matteRatio * 0.72, 0, 1);
+      const nextAlpha = Math.round(alphaFactor * 255);
+      if (nextAlpha <= 0) {
+        data[index + 3] = 0;
+        continue;
+      }
+
+      const restoredAlpha = clamp(nextAlpha / 255, 0.08, 1);
+      data[index] = unblendChannel(snapshot[index], background.red, restoredAlpha);
+      data[index + 1] = unblendChannel(snapshot[index + 1], background.green, restoredAlpha);
+      data[index + 2] = unblendChannel(snapshot[index + 2], background.blue, restoredAlpha);
+      data[index + 3] = nextAlpha;
+    }
+  }
+}
+
+function clearTransparentFringeNoise(imageData, width, height, background, profile = {}) {
+  const data = imageData.data;
+  const tolerance = profile.aggressive ? 40 : 30;
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const index = (y * width + x) * 4;
+      const alpha = data[index + 3];
+      if (alpha <= 0 || alpha >= 38) continue;
+
+      const distance = colorDistance(
+        data[index],
+        data[index + 1],
+        data[index + 2],
+        background.red,
+        background.green,
+        background.blue,
+      );
+      if (distance > tolerance) continue;
+
+      if (countTransparentNeighbors(data, width, height, x, y) >= 4) {
+        data[index + 3] = 0;
+      }
+    }
+  }
+}
+
+function applySolidBackdropMatte(imageData, width, height, background, baseTolerance, profile = {}) {
+  const data = imageData.data;
+  const brightness = (background.red + background.green + background.blue) / 3;
+  const backdropIsExtreme = brightness >= 218 || brightness <= 38;
+  if (!backdropIsExtreme) return;
+
+  const tolerance = baseTolerance + (profile.aggressive ? 52 : 40);
+  const releaseThreshold = baseTolerance * (profile.aggressive ? 0.38 : 0.44);
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const index = (y * width + x) * 4;
+      const alpha = data[index + 3];
+      if (alpha <= 0) continue;
+
+      const distance = colorDistance(
+        data[index],
+        data[index + 1],
+        data[index + 2],
+        background.red,
+        background.green,
+        background.blue,
+      );
+      if (distance > tolerance) continue;
+
+      const transparentNeighbors = countTransparentNeighbors(data, width, height, x, y);
+      const opaqueNeighbors = countOpaqueNeighbors(data, width, height, x, y);
+      if (!transparentNeighbors || !opaqueNeighbors) continue;
+
+      const max = Math.max(data[index], data[index + 1], data[index + 2]);
+      const min = Math.min(data[index], data[index + 1], data[index + 2]);
+      const saturation = max - min;
+      const mostlyNeutral = saturation < (profile.aggressive ? 34 : 26);
+      const closeness = clamp((distance - releaseThreshold) / Math.max(1, tolerance - releaseThreshold), 0, 1);
+      const softenedAlpha = Math.round(alpha * closeness);
+
+      if (mostlyNeutral || transparentNeighbors >= 3) {
+        data[index + 3] = Math.min(data[index + 3], softenedAlpha);
+      }
+
+      if (data[index + 3] > 0 && data[index + 3] < 240) {
+        const alphaFactor = clamp(data[index + 3] / 255, 0.04, 1);
+        data[index] = unblendChannel(data[index], background.red, alphaFactor);
+        data[index + 1] = unblendChannel(data[index + 1], background.green, alphaFactor);
+        data[index + 2] = unblendChannel(data[index + 2], background.blue, alphaFactor);
+      }
+    }
+  }
+}
+
+function clearGlobalBackdropPixels(imageData, width, height, background, baseTolerance, profile = {}) {
+  if (!profile.lineArt && !profile.posterizedBackdrop) return;
+
+  const data = imageData.data;
+  const snapshot = new Uint8ClampedArray(data);
+  const brightnessTarget = profile.backgroundBrightness ?? (background.red + background.green + background.blue) / 3;
+  const removeTolerance = baseTolerance + (profile.lineArt ? 24 : 12);
+  const allowedBrightnessGap = profile.extremeBackground ? 72 : 42;
+  const maxSaturation = profile.lineArt ? 42 : 28;
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const index = (y * width + x) * 4;
+      const alpha = snapshot[index + 3];
+      if (alpha <= 0) continue;
+      if (!isBackgroundLikePixel(snapshot, index, background, removeTolerance)) continue;
+
+      const red = snapshot[index];
+      const green = snapshot[index + 1];
+      const blue = snapshot[index + 2];
+      const max = Math.max(red, green, blue);
+      const min = Math.min(red, green, blue);
+      const saturation = max - min;
+      const brightness = (red + green + blue) / 3;
+      if (saturation > maxSaturation) continue;
+      if (Math.abs(brightness - brightnessTarget) > allowedBrightnessGap) continue;
+
+      const inkNeighbors = countInkNeighbors(snapshot, width, height, x, y, background, removeTolerance);
+      if (inkNeighbors >= 5) {
+        data[index + 3] = Math.min(data[index + 3], profile.lineArt ? 10 : 18);
+      } else {
+        data[index + 3] = 0;
+      }
+    }
+  }
+}
+
 function countTransparentNeighbors(data, width, height, x, y) {
   let transparentCount = 0;
   for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
@@ -724,23 +1010,99 @@ function countTransparentNeighbors(data, width, height, x, y) {
   return transparentCount;
 }
 
+function countOpaqueNeighbors(data, width, height, x, y) {
+  let opaqueCount = 0;
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      if (offsetX === 0 && offsetY === 0) continue;
+      const nextX = x + offsetX;
+      const nextY = y + offsetY;
+      if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+      const index = (nextY * width + nextX) * 4;
+      if (data[index + 3] >= 180) opaqueCount += 1;
+    }
+  }
+  return opaqueCount;
+}
+
+function countInkNeighbors(data, width, height, x, y, background, tolerance) {
+  let inkCount = 0;
+  for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      if (offsetX === 0 && offsetY === 0) continue;
+      const nextX = x + offsetX;
+      const nextY = y + offsetY;
+      if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+      const index = (nextY * width + nextX) * 4;
+      if (data[index + 3] <= 72) continue;
+      if (isBackgroundLikePixel(data, index, background, tolerance)) continue;
+      inkCount += 1;
+    }
+  }
+  return inkCount;
+}
+
+function unblendChannel(value, backgroundChannel, alphaFactor) {
+  return Math.round(clamp((value - backgroundChannel * (1 - alphaFactor)) / alphaFactor, 0, 255));
+}
+
 function analyzeBackgroundRemoval(imageData, width, height) {
   const data = imageData.data;
   const buckets = new Set();
+  const background = estimateLogoEdgeBackground(data, width, height);
+  const backgroundBrightness = (background.red + background.green + background.blue) / 3;
+  const extremeBackground = backgroundBrightness >= 226 || backgroundBrightness <= 30;
   const step = Math.max(1, Math.floor(Math.min(width, height) / 42));
+  let opaqueSamples = 0;
+  let darkSamples = 0;
+  let neutralSamples = 0;
+  let backgroundSamples = 0;
 
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
       const index = (y * width + x) * 4;
       if (data[index + 3] < 200) continue;
+      opaqueSamples += 1;
       const bucket =
         `${Math.round(data[index] / 24)}-${Math.round(data[index + 1] / 24)}-${Math.round(data[index + 2] / 24)}`;
       buckets.add(bucket);
-      if (buckets.size > 48) return { aggressive: true };
+
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      const max = Math.max(red, green, blue);
+      const min = Math.min(red, green, blue);
+      const saturation = max - min;
+      const brightness = (red + green + blue) / 3;
+      if (saturation < 28) neutralSamples += 1;
+      if (brightness <= 168) darkSamples += 1;
+      if (colorDistance(red, green, blue, background.red, background.green, background.blue) <= 28) backgroundSamples += 1;
+
+      if (buckets.size > 48) {
+        return {
+          aggressive: true,
+          lineArt: false,
+          posterizedBackdrop: false,
+          backgroundBrightness,
+          extremeBackground,
+        };
+      }
     }
   }
 
-  return { aggressive: buckets.size > 24 };
+  const darkRatio = opaqueSamples ? darkSamples / opaqueSamples : 0;
+  const neutralRatio = opaqueSamples ? neutralSamples / opaqueSamples : 0;
+  const backgroundRatio = opaqueSamples ? backgroundSamples / opaqueSamples : 0;
+  const lineArt = extremeBackground && buckets.size <= 16 && darkRatio >= 0.04 && neutralRatio >= 0.52 && backgroundRatio >= 0.28;
+  const posterizedBackdrop = extremeBackground && buckets.size <= 22 && backgroundRatio >= 0.42;
+
+  return {
+    aggressive: buckets.size > 24,
+    lineArt,
+    posterizedBackdrop,
+    backgroundBrightness,
+    extremeBackground,
+  };
 }
 
 function cropCanvasToVisibleBounds(sourceCanvas) {
@@ -1049,16 +1411,16 @@ function normalizeCatalogTechniques(value, fallbackText = "") {
   if (Array.isArray(value) && value.length) return value;
   const haystack = normalizeText(`${cleanCatalogText(value)} ${fallbackText}`);
   const matches = [
-    ["Laser", "laser"],
-    ["Serigrafia", "serigrafia"],
-    ["Tampografia", "tampografia"],
-    ["UV digital", "uv"],
-    ["Sublimacao", "sublim"],
-    ["Transfer", "transfer"],
-    ["Bordado", "bordado"],
-    ["Baixo-relevo", "baixo relevo"],
+    ["Laser", ["laser", "laser engraving", "gravacao a laser", "engraving"]],
+    ["Serigrafia", ["serigrafia", "silk", "silk screen", "screen print", "screen printing"]],
+    ["Tampografia", ["tampografia", "pad print", "pad printing"]],
+    ["UV digital", ["uv", "uv digital", "digital uv", "uv print"]],
+    ["Sublimacao", ["sublim", "sublimacao", "sublimation"]],
+    ["Transfer", ["transfer", "termo transfer", "heat transfer"]],
+    ["Bordado", ["bordado", "embroidery", "embroidered"]],
+    ["Baixo-relevo", ["baixo relevo", "baixo-relevo", "deboss", "debossed", "emboss"]],
   ]
-    .filter(([, needle]) => haystack.includes(needle))
+    .filter(([, needles]) => needles.some((needle) => haystack.includes(needle)))
     .map(([label]) => label);
   return matches.length ? [...new Set(matches)] : ["A definir"];
 }
@@ -1712,7 +2074,7 @@ function getLogoConstraintRect() {
 }
 
 function getProductFrame() {
-  return { x: 90, y: 128, width: 1020, height: 498 };
+  return { x: 50, y: 110, width: 1100, height: 560 };
 }
 
 function getContainSize(image, targetWidth, targetHeight) {
@@ -1737,20 +2099,14 @@ function drawSafeArea(targetCtx, includeSelection) {
 }
 
 function drawLogo(targetCtx, width, height) {
-  const temp = document.createElement("canvas");
-  const tempCtx = temp.getContext("2d");
   const padding = Math.ceil(height * 0.45);
-  temp.width = Math.ceil(width);
-  temp.height = Math.ceil(height + padding * 2);
-
-  tempCtx.clearRect(0, 0, temp.width, temp.height);
-  tempCtx.drawImage(state.logo, 0, padding, width, height);
-  applyLogoColor(tempCtx, temp.width, temp.height);
+  const temp = createProcessedLogoCanvas(width, height, padding);
 
   targetCtx.save();
   targetCtx.translate(state.logoX, state.logoY);
   targetCtx.rotate((state.rotation * Math.PI) / 180);
   targetCtx.globalAlpha = state.opacity;
+  targetCtx.globalCompositeOperation = getLogoBlendMode();
   applyTechniqueStyle(targetCtx);
 
   const columns = Math.max(80, Math.ceil(width));
@@ -1818,6 +2174,7 @@ function drawWarpedLogo(targetCtx, width, height) {
 
   targetCtx.save();
   targetCtx.globalAlpha = state.opacity;
+  targetCtx.globalCompositeOperation = getLogoBlendMode();
   applyTechniqueStyle(targetCtx);
 
   for (let row = 0; row < rows; row += 1) {
@@ -1855,13 +2212,14 @@ function drawWarpedLogo(targetCtx, width, height) {
   targetCtx.restore();
 }
 
-function createProcessedLogoCanvas(width, height) {
+function createProcessedLogoCanvas(width, height, padding = 0) {
   const temp = document.createElement("canvas");
   const tempCtx = temp.getContext("2d");
   temp.width = Math.ceil(width);
-  temp.height = Math.ceil(height);
-  tempCtx.drawImage(state.logo, 0, 0, width, height);
+  temp.height = Math.ceil(height + padding * 2);
+  tempCtx.drawImage(state.logo, 0, padding, width, height);
   applyLogoColor(tempCtx, temp.width, temp.height);
+  applyTechniqueEffectToLogoCanvas(tempCtx, temp.width, temp.height, padding, height);
   return temp;
 }
 
@@ -1913,18 +2271,31 @@ function createSafeAreaMask() {
 }
 
 function applyTechniqueStyle(targetCtx) {
-  targetCtx.globalCompositeOperation = "source-over";
-  targetCtx.filter = "none";
+  const filters = {
+    laser: "contrast(1.08) saturate(0.82)",
+    silk: "contrast(1.14) saturate(1.02)",
+    uv: "saturate(1.22) contrast(1.08) brightness(1.04)",
+    tampo: "saturate(0.92) contrast(1.02) blur(0.2px)",
+    bordado: "contrast(1.06) saturate(0.94)",
+    "baixo-relevo": "contrast(1.06) saturate(0.88) brightness(0.96)",
+  };
+  targetCtx.filter = filters[state.technique] || "none";
+}
+
+function getLogoBlendMode() {
+  if (!state.whiteBlend) return "source-over";
+  if (state.logoColorMode === "#ffffff" || getLogoColor() === "#ffffff") return "screen";
+  return "multiply";
 }
 
 function drawTechniqueHighlight(targetCtx, width, height) {
   if (state.logoColorMode === "original") return;
-  if (!["laser", "uv", "baixo-relevo"].includes(state.technique)) return;
+  if (!["laser", "uv", "baixo-relevo", "tampo"].includes(state.technique)) return;
   targetCtx.save();
   targetCtx.translate(state.logoX, state.logoY);
   targetCtx.rotate((state.rotation * Math.PI) / 180);
-  targetCtx.globalAlpha = state.technique === "uv" ? 0.16 : 0.24;
-  targetCtx.globalCompositeOperation = "screen";
+  targetCtx.globalAlpha = state.technique === "uv" ? 0.18 : state.technique === "tampo" ? 0.12 : 0.24;
+  targetCtx.globalCompositeOperation = state.technique === "baixo-relevo" ? "overlay" : "screen";
   const shine = targetCtx.createLinearGradient(-width / 2, 0, width / 2, 0);
   shine.addColorStop(0, "rgba(255,255,255,0)");
   shine.addColorStop(0.48, "rgba(255,255,255,0.52)");
@@ -1932,6 +2303,147 @@ function drawTechniqueHighlight(targetCtx, width, height) {
   shine.addColorStop(1, "rgba(255,255,255,0)");
   targetCtx.fillStyle = shine;
   targetCtx.fillRect(-width / 2, -height * 0.7, width, height * 1.4);
+  targetCtx.restore();
+}
+
+function applyTechniqueEffectToLogoCanvas(targetCtx, width, height, padding = 0, contentHeight = height) {
+  switch (state.technique) {
+    case "laser":
+      applyLaserLogoEffect(targetCtx, width, height);
+      break;
+    case "silk":
+      crispLogoAlpha(targetCtx, width, height, 48);
+      break;
+    case "uv":
+      applyUvLogoEffect(targetCtx, width, height);
+      break;
+    case "tampo":
+      softenLogoAlpha(targetCtx, width, height, 0.9);
+      applyStippleOverlay(targetCtx, width, height, "rgba(255,255,255,0.08)", 6);
+      break;
+    case "bordado":
+      applyEmbroideryOverlay(targetCtx, width, height, padding, contentHeight);
+      break;
+    case "baixo-relevo":
+      softenLogoAlpha(targetCtx, width, height, 0.88);
+      applyDebossOverlay(targetCtx, width, height, padding, contentHeight);
+      break;
+    default:
+      break;
+  }
+}
+
+function applyLaserLogoEffect(targetCtx, width, height) {
+  const imageData = targetCtx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let index = 0; index < data.length; index += 4) {
+    const alpha = data[index + 3];
+    if (alpha <= 0) continue;
+
+    if (state.logoColorMode === "original") {
+      const luminance = Math.round(data[index] * 0.299 + data[index + 1] * 0.587 + data[index + 2] * 0.114);
+      data[index] = Math.round(luminance * 0.82);
+      data[index + 1] = Math.round(luminance * 0.82);
+      data[index + 2] = Math.round(luminance * 0.82);
+    }
+
+    const pixelY = Math.floor(index / 4 / width);
+    if (pixelY % 4 === 0) {
+      data[index] = Math.round(data[index] * 0.92);
+      data[index + 1] = Math.round(data[index + 1] * 0.92);
+      data[index + 2] = Math.round(data[index + 2] * 0.92);
+    }
+    data[index + 3] = Math.round(alpha * 0.92);
+  }
+
+  targetCtx.putImageData(imageData, 0, 0);
+}
+
+function crispLogoAlpha(targetCtx, width, height, threshold) {
+  const imageData = targetCtx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  for (let index = 0; index < data.length; index += 4) {
+    const alpha = data[index + 3];
+    if (alpha <= 0) continue;
+    if (alpha < threshold) data[index + 3] = 0;
+    else if (alpha > 180) data[index + 3] = 255;
+  }
+  targetCtx.putImageData(imageData, 0, 0);
+}
+
+function softenLogoAlpha(targetCtx, width, height, multiplier) {
+  const imageData = targetCtx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  for (let index = 0; index < data.length; index += 4) {
+    if (data[index + 3] <= 0) continue;
+    data[index + 3] = Math.round(data[index + 3] * multiplier);
+  }
+  targetCtx.putImageData(imageData, 0, 0);
+}
+
+function applyUvLogoEffect(targetCtx, width, height) {
+  targetCtx.save();
+  targetCtx.globalCompositeOperation = "source-atop";
+  const gloss = targetCtx.createLinearGradient(0, 0, width, height);
+  gloss.addColorStop(0, "rgba(255,255,255,0.36)");
+  gloss.addColorStop(0.38, "rgba(255,255,255,0.08)");
+  gloss.addColorStop(0.62, "rgba(255,255,255,0)");
+  gloss.addColorStop(1, "rgba(255,255,255,0.24)");
+  targetCtx.fillStyle = gloss;
+  targetCtx.fillRect(0, 0, width, height);
+  targetCtx.restore();
+}
+
+function applyEmbroideryOverlay(targetCtx, width, height, padding = 0, contentHeight = height) {
+  targetCtx.save();
+  targetCtx.globalCompositeOperation = "source-atop";
+  targetCtx.lineWidth = 1.4;
+  targetCtx.strokeStyle = "rgba(255,255,255,0.26)";
+  for (let offset = -contentHeight; offset < width + contentHeight; offset += 8) {
+    targetCtx.beginPath();
+    targetCtx.moveTo(offset, padding);
+    targetCtx.lineTo(offset + contentHeight, padding + contentHeight);
+    targetCtx.stroke();
+  }
+  targetCtx.strokeStyle = "rgba(0,0,0,0.15)";
+  for (let offset = 4; offset < width + contentHeight; offset += 8) {
+    targetCtx.beginPath();
+    targetCtx.moveTo(offset, padding);
+    targetCtx.lineTo(offset - contentHeight, padding + contentHeight);
+    targetCtx.stroke();
+  }
+  targetCtx.restore();
+}
+
+function applyDebossOverlay(targetCtx, width, height, padding = 0, contentHeight = height) {
+  targetCtx.save();
+  targetCtx.globalCompositeOperation = "source-atop";
+  const topLight = targetCtx.createLinearGradient(0, padding, 0, padding + contentHeight);
+  topLight.addColorStop(0, "rgba(255,255,255,0.3)");
+  topLight.addColorStop(0.42, "rgba(255,255,255,0.06)");
+  topLight.addColorStop(1, "rgba(0,0,0,0)");
+  targetCtx.fillStyle = topLight;
+  targetCtx.fillRect(0, padding, width, contentHeight);
+
+  const bottomShadow = targetCtx.createLinearGradient(0, padding, 0, padding + contentHeight);
+  bottomShadow.addColorStop(0, "rgba(0,0,0,0)");
+  bottomShadow.addColorStop(0.55, "rgba(0,0,0,0.08)");
+  bottomShadow.addColorStop(1, "rgba(0,0,0,0.24)");
+  targetCtx.fillStyle = bottomShadow;
+  targetCtx.fillRect(0, padding, width, contentHeight);
+  targetCtx.restore();
+}
+
+function applyStippleOverlay(targetCtx, width, height, color, step) {
+  targetCtx.save();
+  targetCtx.globalCompositeOperation = "source-atop";
+  targetCtx.fillStyle = color;
+  for (let y = 2; y < height; y += step) {
+    for (let x = (y / step) % 2 === 0 ? 2 : step / 2; x < width; x += step) {
+      targetCtx.fillRect(x, y, 1.2, 1.2);
+    }
+  }
   targetCtx.restore();
 }
 
@@ -2129,6 +2641,7 @@ function resetLogoSettings() {
   state.bend = 0;
   state.logoColorMode = "original";
   state.removeBackground = false;
+  state.whiteBlend = false;
   state.logoCutout = 24;
   state.logoSelected = true;
   resetLogoQuad();
@@ -2838,6 +3351,13 @@ removeBgToggle.addEventListener("change", () => {
   draw();
 });
 
+whiteBlendToggle?.addEventListener("change", () => {
+  beginUndo("white-blend");
+  state.whiteBlend = whiteBlendToggle.checked;
+  commitUndo("white-blend");
+  draw();
+});
+
 logoCutoutControl.addEventListener("input", () => {
   pushControlUndo("logo-cutout");
   state.logoCutout = Number(logoCutoutControl.value);
@@ -2967,8 +3487,8 @@ canvas.addEventListener(
 
 downloadBtn.addEventListener("click", exportImage);
 approvalBtn.addEventListener("click", openApprovalSheet);
-printSheetBtn.addEventListener("click", () => openApprovalSheet());
-downloadSheetBtn.addEventListener("click", () => openApprovalSheet({ autoPrint: true }));
+printSheetBtn.addEventListener("click", () => openApprovalSheet({ autoPrint: true }));
+downloadSheetBtn.addEventListener("click", openApprovalSheet);
 
 document.addEventListener("keydown", (event) => {
   const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z";
