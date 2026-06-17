@@ -3627,7 +3627,7 @@ canvas.addEventListener(
 
 downloadBtn?.addEventListener("click", exportImage);
 approvalBtn?.addEventListener("click", openApprovalSheet);
-printSheetBtn?.addEventListener("click", () => openApprovalSheet({ autoPrint: true }));
+printSheetBtn?.addEventListener("click", openApprovalSheet);
 downloadSheetBtn?.addEventListener("click", openApprovalSheet);
 
 document.addEventListener("keydown", (event) => {
