@@ -4,6 +4,8 @@
 
 O portal de guias está em `blog/index.html`. Use `blog/incorporar.html` para copiar o código de integração com WordPress, Blogger ou HTML. O editor original continua na raiz.
 
+O portal reúne dois apps: Elo Preview para brindes (`blog/simulador.html`) e Newpen Signature para canetas (`blog/simulador-canetas.html`). O segundo é incorporado do próprio GitHub Pages, sem duplicar catálogo ou controles. A página de incorporação permite escolher qualquer um dos dois.
+
 Para atualizar os guias: `node scripts/build-blog.mjs`.
 
 Consulte [MONETIZACAO.md](MONETIZACAO.md) para os passos de publicidade e as pendências de conta, aprovação e domínio. Os espaços publicitários não exibem anúncios reais nesta versão.

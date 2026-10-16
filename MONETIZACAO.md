@@ -19,6 +19,7 @@ Para editar os textos, altere `scripts/build-blog.mjs` e rode `node scripts/buil
 ## O que está ativo
 
 - Portal com quatro guias originais, simulador incorporado e gerador de código para outros blogs.
+- Dois simuladores disponíveis: Elo Preview e canetas Newpen Signature. A conta de publicidade e o ads.txt são os mesmos do domínio; incorporar outro app não confirma aprovação do Google. A publicidade permanece fora dos iframes.
 - Páginas de sobre, contato, privacidade e termos.
 - Espaços identificados para publicidade, sem rede de anúncios e sem cobrança automática.
 - Contato público pelo GitHub; substitua por um canal comercial próprio antes de ampliar a divulgação.
