@@ -1,5 +1,13 @@
 # Elo Preview
 
+## Blog e integração
+
+O portal de guias está em `blog/index.html`. Use `blog/incorporar.html` para copiar o código de integração com WordPress, Blogger ou HTML. O editor original continua na raiz.
+
+Para atualizar os guias: `node scripts/build-blog.mjs`.
+
+Consulte [MONETIZACAO.md](MONETIZACAO.md) para os passos de publicidade e as pendências de conta, aprovação e domínio. Os espaços publicitários não exibem anúncios reais nesta versão.
+
 Prototipo estatico de simulador comercial para personalizacao de brindes.
 
 ## Como rodar
